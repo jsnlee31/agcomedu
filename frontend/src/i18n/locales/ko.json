@@ -137,7 +137,9 @@
     "statusWaiting": "대기중",
     "statusProcessing": "처리중",
     "statusCompleted": "완료",
-    "response": "답변"
+    "response": "답변",
+    "faqDescription": "자주 묻는 질문과 답변을 확인하세요.",
+    "inquiryDescription": "궁금한 점을 남겨주시면 담당자가 확인 후 답변드립니다."
   },
   "auth": {
     "login": "로그인",
@@ -179,7 +181,7 @@
     "event": "일정"
   },
   "footer": {
-    "copyright": "© {year} 2026 Asian Games Delegation Platform. All rights reserved.",
+    "copyright": "© {{year}} 아시안게임 선수단 플랫폼. 모든 권리 보유.",
     "contact": "대표번호",
     "address": "주소",
     "privacyPolicy": "개인정보처리방침",

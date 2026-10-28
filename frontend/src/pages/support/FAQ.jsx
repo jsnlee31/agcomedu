@@ -17,25 +17,29 @@ import {
   Search as SearchIcon,
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { faqAPI } from '../../services/api';
+import { apiArray, faqAPI } from '../../services/api';
+import { useIsKorean } from '../../utils/language';
+
+const ALL = '__all__';
 
 const FAQ = () => {
   const { t } = useTranslation();
+  const isKorean = useIsKorean();
 
   const [loading, setLoading] = useState(true);
   const [faqs, setFaqs] = useState([]);
+  const [categoryList, setCategoryList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('?꾩껜');
+  const [selectedCategory, setSelectedCategory] = useState(ALL);
   const [expanded, setExpanded] = useState(null);
-
-  const categories = ['?꾩껜', '?뚯썝', '?꾨줈洹몃옩', '梨꾩슜', '?숈뒿', '湲고?'];
 
   useEffect(() => {
     const fetchFAQs = async () => {
       setLoading(true);
       try {
-        const response = await faqAPI.getAll();
-        setFaqs(response.data.faqs || []);
+        const [faqRes, catRes] = await Promise.allSettled([faqAPI.getAll(), faqAPI.getCategories()]);
+        setFaqs(faqRes.status === 'fulfilled' ? apiArray(faqRes.value.data, 'faqs') : []);
+        setCategoryList(catRes.status === 'fulfilled' ? apiArray(catRes.value.data, 'categories') : []);
       } catch (error) {
         console.error('Failed to fetch FAQs:', error);
       } finally {
@@ -46,11 +50,34 @@ const FAQ = () => {
     fetchFAQs();
   }, []);
 
+  const getQuestion = (faq) => (isKorean ? faq.question_ko || faq.question_en : faq.question_en || faq.question_ko) || faq.question || '';
+  const getAnswer = (faq) => (isKorean ? faq.answer_ko || faq.answer_en : faq.answer_en || faq.answer_ko) || faq.answer || '';
+  const getCategoryLabel = (faq) => {
+    const cat = categoryList.find((c) => String(c.id) === String(faq.category_id));
+    if (cat) return (isKorean ? cat.name_ko || cat.name_en : cat.name_en || cat.name_ko) || '';
+    return faq.category_name || faq.category || (isKorean ? '기타' : 'Other');
+  };
+
+  const categories = [
+    { key: ALL, label: isKorean ? '전체' : 'All' },
+    ...(categoryList.length > 0
+      ? categoryList.map((c) => ({
+          key: String(c.id),
+          label: (isKorean ? c.name_ko || c.name_en : c.name_en || c.name_ko) || '-',
+        }))
+      : faqs
+          .filter((faq, index, arr) => faq.category_id && arr.findIndex((f) => f.category_id === faq.category_id) === index)
+          .map((faq) => ({ key: String(faq.category_id), label: faq.category_name || '-' }))),
+  ];
+
+  const term = searchTerm.trim().toLowerCase();
   const filteredFAQs = faqs.filter((faq) => {
-    const matchesSearch =
-      faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === '?꾩껜' || faq.category === selectedCategory;
+    const haystack = [faq.question_ko, faq.question_en, faq.answer_ko, faq.answer_en]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    const matchesSearch = !term || haystack.includes(term);
+    const matchesCategory = selectedCategory === ALL || String(faq.category_id) === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -75,7 +102,7 @@ const FAQ = () => {
           {/* Search */}
           <TextField
             fullWidth
-            placeholder="吏덈Ц??寃?됲빐蹂댁꽭??.."
+            placeholder={isKorean ? '질문을 검색해보세요...' : 'Search questions...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -92,10 +119,10 @@ const FAQ = () => {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
             {categories.map((category) => (
               <Chip
-                key={category}
-                label={category}
-                variant={selectedCategory === category ? 'filled' : 'outlined'}
-                onClick={() => setSelectedCategory(category)}
+                key={category.key}
+                label={category.label}
+                variant={selectedCategory === category.key ? 'filled' : 'outlined'}
+                onClick={() => setSelectedCategory(category.key)}
                 sx={{ cursor: 'pointer' }}
               />
             ))}
@@ -111,7 +138,7 @@ const FAQ = () => {
           ) : filteredFAQs.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <Typography color="text.secondary">
-                寃??寃곌낵媛 ?놁뒿?덈떎
+                {isKorean ? '검색 결과가 없습니다' : 'No results found'}
               </Typography>
             </Box>
           ) : (
@@ -140,21 +167,21 @@ const FAQ = () => {
                     },
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
                     <Chip
-                      label={faq.category}
+                      label={getCategoryLabel(faq)}
                       size="small"
                       variant="outlined"
                       sx={{ minWidth: 60 }}
                     />
                     <Typography variant="body1" fontWeight={500}>
-                      Q. {faq.question}
+                      Q. {getQuestion(faq)}
                     </Typography>
                   </Box>
                 </AccordionSummary>
                 <AccordionDetails sx={{ backgroundColor: '#F8F9FA' }}>
-                  <Typography variant="body2" sx={{ lineHeight: 1.8 }}>
-                    A. {faq.answer}
+                  <Typography variant="body2" sx={{ lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+                    A. {getAnswer(faq)}
                   </Typography>
                 </AccordionDetails>
               </Accordion>

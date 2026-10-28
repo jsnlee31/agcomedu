@@ -8,12 +8,20 @@ import { Close as CloseIcon, ArrowBack as ArrowBackIcon, ArrowForward as ArrowFo
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
+import { useAuth } from '../../contexts/AuthContext';
+import { useIsKorean } from '../../utils/language';
+import { EditStageToolbar, ResizableFrame, resetStageSizes } from '../admin/EditStageTools';
 
 const DRAWER_WIDTH = 240;
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isKorean = useIsKorean();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [editStage, setEditStage] = useState(false);
+  const [stageKey, setStageKey] = useState(0);
+  const canEditStage = user?.role === 'admin';
 
   // ─── Popup Banner State (multiple) ──────────────────────────
   const [popupOpen, setPopupOpen] = useState(false);
@@ -32,7 +40,8 @@ const Layout = ({ children }) => {
       let popupData = [];
       const savedMulti = localStorage.getItem('asiangames_popup_banners');
       if (savedMulti) {
-        popupData = JSON.parse(savedMulti);
+        const parsedMulti = JSON.parse(savedMulti);
+        popupData = Array.isArray(parsedMulti) ? parsedMulti : [];
       } else {
         const savedSingle = localStorage.getItem('asiangames_popup_banner');
         if (savedSingle) {
@@ -42,7 +51,7 @@ const Layout = ({ children }) => {
       }
 
       // Filter to active popups only
-      const activePopups = popupData.filter((p) => p.active);
+      const activePopups = popupData.filter((p) => p && p.active && (p.title || p.content || p.imageUrl));
 
       if (activePopups.length > 0) {
         const dismissed = localStorage.getItem('asiangames_popup_dismissed');
@@ -57,18 +66,6 @@ const Layout = ({ children }) => {
           setCurrentPopupIndex(0);
           setPopupOpen(true);
         }
-      } else if (!savedMulti && !localStorage.getItem('asiangames_popup_banner')) {
-        // Default popup if none saved
-        setPopups([{
-          id: 0,
-          active: true,
-          title: '2026년 상반기 시니어 프로그램 모집',
-          content: '금융컨설팅, 부동산, 창업 등 다양한 프로그램에 참여하세요!',
-          imageUrl: '',
-          linkUrl: '/programs',
-          linkText: '자세히 보기',
-        }]);
-        setPopupOpen(true);
       }
     } catch { /* ignore */ }
 
@@ -77,17 +74,14 @@ const Layout = ({ children }) => {
       const active = localStorage.getItem('asiangames_footer_active');
       setFooterActive(active !== 'false');
       const speed = localStorage.getItem('asiangames_footer_speed');
-      setFooterSpeed(parseInt(speed || '30', 10));
+      setFooterSpeed(parseInt(speed || '30', 10) || 30);
       const saved = localStorage.getItem('asiangames_footer_banners');
       if (saved) {
-        setFooterBanners(JSON.parse(saved).filter((b) => b.active && b.text));
+        const parsed = JSON.parse(saved);
+        setFooterBanners(Array.isArray(parsed) ? parsed.filter((b) => b && b.active && b.text) : []);
       } else {
-        setFooterBanners([
-          { id: 1, text: '📢 2026년 상반기 시니어 프로그램 모집 중! 지금 바로 신청하세요.', active: true },
-          { id: 2, text: '💼 신규 채용정보가 등록되었습니다. 채용공고를 확인해보세요!', active: true },
-          { id: 3, text: '📚 새로운 온라인 강좌 "AI 활용 실무"가 오픈되었습니다.', active: true },
-        ]);
-        setFooterActive(true);
+        // Only show footer banners that an admin has actually configured.
+        setFooterBanners([]);
       }
     } catch { /* ignore */ }
   }, []);
@@ -134,14 +128,39 @@ const Layout = ({ children }) => {
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          // minWidth 0 lets wide tables scroll inside the page instead of
+          // stretching the whole layout past the screen on phones.
+          minWidth: 0,
+          width: { xs: '100%', md: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { md: 0 },
         }}
       >
         <Toolbar />
 
         <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, backgroundColor: '#F8F9FA' }}>
-          {children}
+          {canEditStage && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+              <EditStageToolbar
+                enabled={editStage}
+                onToggle={() => setEditStage((value) => !value)}
+                onReset={() => {
+                  resetStageSizes('webfront');
+                  setStageKey((value) => value + 1);
+                }}
+              />
+            </Box>
+          )}
+          <ResizableFrame
+            key={stageKey}
+            scope="webfront"
+            id="page-content"
+            enabled={canEditStage && editStage}
+            minHeight={420}
+            minWidth={280}
+            sx={{ width: '100%' }}
+          >
+            {children}
+          </ResizableFrame>
         </Box>
 
         <Footer />
@@ -209,7 +228,7 @@ const Layout = ({ children }) => {
               <Box
                 component="img"
                 src={currentPopup.imageUrl}
-                alt="Banner"
+                alt={isKorean ? '배너' : 'Banner'}
                 sx={{ width: '100%', height: 180, objectFit: 'cover' }}
               />
             )}
@@ -262,10 +281,10 @@ const Layout = ({ children }) => {
                       onChange={(e) => setDontShowToday(e.target.checked)}
                     />
                   }
-                  label={<Typography variant="caption" color="text.secondary">오늘 하루 보지 않기</Typography>}
+                  label={<Typography variant="caption" color="text.secondary">{isKorean ? '오늘 하루 보지 않기' : "Don't show again today"}</Typography>}
                 />
                 <Button size="small" onClick={handleClosePopup} sx={{ fontSize: '0.75rem' }}>
-                  닫기
+                  {isKorean ? '닫기' : 'Close'}
                 </Button>
               </Box>
             </DialogActions>

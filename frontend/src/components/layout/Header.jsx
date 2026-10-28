@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -24,10 +23,14 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import LanguageToggle from './LanguageToggle';
+import AsianGamesCursorIcon from '../common/AsianGamesCursorIcon';
+import { useHomeSettings } from '../../utils/siteSettings';
+import { useIsKorean } from '../../utils/language';
 
-const Header = ({ onMenuToggle, sidebarOpen }) => {
-  const { t } = useTranslation();
+const Header = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
+  const { settings } = useHomeSettings();
+  const isKorean = useIsKorean();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -35,45 +38,10 @@ const Header = ({ onMenuToggle, sidebarOpen }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [notificationAnchor, setNotificationAnchor] = React.useState(null);
 
-  // Load custom logo from localStorage
-  const [customLogo, setCustomLogo] = React.useState(null);
-  React.useEffect(() => {
-    try {
-      const saved = localStorage.getItem('asiangames_site_logo');
-      if (saved) setCustomLogo(JSON.parse(saved));
-    } catch { /* ignore */ }
-  }, []);
-
-  const handleProfileClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleProfileClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleNotificationClick = (event) => {
-    setNotificationAnchor(event.currentTarget);
-  };
-
-  const handleNotificationClose = () => {
-    setNotificationAnchor(null);
-  };
-
   const handleLogout = async () => {
-    handleProfileClose();
+    setAnchorEl(null);
     await logout();
-    navigate('/login');
-  };
-
-  const handleProfile = () => {
-    handleProfileClose();
-    navigate('/profile');
-  };
-
-  const handleSettings = () => {
-    handleProfileClose();
-    navigate('/settings');
+    navigate('/welcome');
   };
 
   return (
@@ -86,66 +54,59 @@ const Header = ({ onMenuToggle, sidebarOpen }) => {
       }}
     >
       <Toolbar>
-        {/* Menu toggle for mobile */}
         {isMobile && (
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            onClick={onMenuToggle}
-            sx={{ mr: 2 }}
-          >
+          <IconButton edge="start" color="inherit" aria-label={isKorean ? '메뉴' : 'menu'} onClick={onMenuToggle} sx={{ mr: 2 }}>
             <MenuIcon />
           </IconButton>
         )}
 
-        {/* Logo */}
         <Box
+          onClick={() => navigate('/')}
           sx={{
             display: 'flex',
             alignItems: 'center',
+            gap: 1,
             cursor: 'pointer',
+            minWidth: 0,
           }}
-          onClick={() => navigate('/')}
         >
-          <Box
-            component="img"
-            src={customLogo?.imageUrl || '/logo.png'}
-            alt="Asian Games Delegation"
-            sx={{
-              height: 32,
-              mr: 1,
-              display: { xs: 'none', sm: 'block' },
-            }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
+          {settings.logoImageUrl ? (
+            <Box
+              component="img"
+              src={settings.logoImageUrl}
+              alt={settings.platformName}
+              sx={{ height: 38, width: 38, objectFit: 'contain', display: { xs: 'none', sm: 'block' } }}
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <AsianGamesCursorIcon compact interactive={false} />
+            </Box>
+          )}
           <Typography
             variant="h6"
             sx={{
               color: '#0047BA',
-              fontWeight: 700,
-              fontSize: { xs: '1rem', sm: '1.125rem' },
+              fontWeight: 800,
+              fontSize: { xs: '0.9rem', sm: '1rem', md: '1.125rem' },
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: { xs: 190, sm: 360, md: 640 },
             }}
           >
-            {isMobile ? '퇴직지원 플랫폼' : t('common.appName')}
+            {isKorean ? (settings.platformName || settings.platformNameEn) : (settings.platformNameEn || settings.platformName)}
           </Typography>
         </Box>
 
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Right side actions */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Language Toggle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
           <LanguageToggle />
 
-          {/* Notifications */}
-          <IconButton
-            color="inherit"
-            onClick={handleNotificationClick}
-            aria-label="notifications"
-          >
+          <IconButton color="inherit" onClick={(event) => setNotificationAnchor(event.currentTarget)} aria-label={isKorean ? '알림' : 'notifications'}>
             <Badge badgeContent={3} color="error">
               <NotificationsIcon />
             </Badge>
@@ -153,96 +114,63 @@ const Header = ({ onMenuToggle, sidebarOpen }) => {
           <Menu
             anchorEl={notificationAnchor}
             open={Boolean(notificationAnchor)}
-            onClose={handleNotificationClose}
-            PaperProps={{
-              sx: { width: 320, maxHeight: 400 },
-            }}
+            onClose={() => setNotificationAnchor(null)}
+            PaperProps={{ sx: { width: 320, maxWidth: 'calc(100vw - 32px)', maxHeight: 400 } }}
           >
             <Box sx={{ p: 2, borderBottom: '1px solid #E5E5E5' }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                알림
-              </Typography>
+              <Typography variant="subtitle1" fontWeight={700}>{isKorean ? '알림' : 'Notifications'}</Typography>
             </Box>
-            <MenuItem onClick={handleNotificationClose}>
+            <MenuItem onClick={() => setNotificationAnchor(null)}>
               <Box>
-                <Typography variant="body2" fontWeight={500}>
-                  새로운 프로그램이 등록되었습니다
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  5분 전
-                </Typography>
+                <Typography variant="body2" fontWeight={600}>{isKorean ? '새 교육 자료가 등록되었습니다.' : 'New learning materials have been posted.'}</Typography>
+                <Typography variant="caption" color="text.secondary">{isKorean ? '5분 전' : '5 minutes ago'}</Typography>
               </Box>
             </MenuItem>
-            <MenuItem onClick={handleNotificationClose}>
+            <MenuItem onClick={() => setNotificationAnchor(null)}>
               <Box>
-                <Typography variant="body2" fontWeight={500}>
-                  신청이 승인되었습니다
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  1시간 전
-                </Typography>
+                <Typography variant="body2" fontWeight={600}>{isKorean ? '신청 상태가 업데이트되었습니다.' : 'Your application status was updated.'}</Typography>
+                <Typography variant="caption" color="text.secondary">{isKorean ? '1시간 전' : '1 hour ago'}</Typography>
               </Box>
             </MenuItem>
             <Divider />
             <MenuItem
               onClick={() => {
-                handleNotificationClose();
-                navigate('/notifications');
+                setNotificationAnchor(null);
+                navigate('/support/notices');
               }}
               sx={{ justifyContent: 'center' }}
             >
-              <Typography variant="body2" color="primary">
-                모든 알림 보기
-              </Typography>
+              <Typography variant="body2" color="primary">{isKorean ? '모든 알림 보기' : 'View all notifications'}</Typography>
             </MenuItem>
           </Menu>
 
-          {/* Profile */}
-          <IconButton
-            onClick={handleProfileClick}
-            sx={{ ml: 1 }}
-            aria-label="profile"
-          >
-            <Avatar
-              sx={{
-                width: 36,
-                height: 36,
-                bgcolor: '#0047BA',
-                fontSize: '0.875rem',
-              }}
-              src={user?.profile_image}
-            >
+          <IconButton onClick={(event) => setAnchorEl(event.currentTarget)} sx={{ ml: { xs: 0, sm: 1 } }} aria-label={isKorean ? '프로필' : 'profile'}>
+            <Avatar sx={{ width: 36, height: 36, bgcolor: '#0047BA', fontSize: '0.875rem' }} src={user?.profile_image}>
               {user?.name_ko?.charAt(0) || user?.name_en?.charAt(0) || 'U'}
             </Avatar>
           </IconButton>
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
-            onClose={handleProfileClose}
-            PaperProps={{
-              sx: { width: 200 },
-            }}
+            onClose={() => setAnchorEl(null)}
+            PaperProps={{ sx: { width: 220 } }}
           >
             <Box sx={{ p: 2, borderBottom: '1px solid #E5E5E5' }}>
-              <Typography variant="subtitle2" fontWeight={600}>
-                {user?.name_ko || user?.name_en || 'User'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {user?.email}
-              </Typography>
+              <Typography variant="subtitle2" fontWeight={700}>{isKorean ? (user?.name_ko || user?.name_en || '사용자') : (user?.name_en || user?.name_ko || 'User')}</Typography>
+              <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
             </Box>
-            <MenuItem onClick={handleProfile}>
+            <MenuItem onClick={() => setAnchorEl(null)}>
               <PersonIcon sx={{ mr: 1, fontSize: 20 }} />
-              내 프로필
+              {isKorean ? '프로필' : 'Profile'}
             </MenuItem>
-            <MenuItem onClick={handleSettings}>
+            <MenuItem onClick={() => setAnchorEl(null)}>
               <SettingsIcon sx={{ mr: 1, fontSize: 20 }} />
-              설정
+              {isKorean ? '설정' : 'Settings'}
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>
               <LogoutIcon sx={{ mr: 1, fontSize: 20 }} />
-              {t('common.logout')}
+              {isKorean ? '로그아웃' : 'Log out'}
             </MenuItem>
           </Menu>
         </Box>

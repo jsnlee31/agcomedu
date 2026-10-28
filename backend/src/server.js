@@ -18,6 +18,9 @@ const faqRoutes = require('./routes/faq');
 const inquiryRoutes = require('./routes/inquiries');
 const dashboardRoutes = require('./routes/dashboard');
 const resumeRoutes = require('./routes/resumes');
+const siteSettingsRoutes = require('./routes/siteSettings');
+const uploadRoutes = require('./routes/uploads');
+const db = require('./config/database');
 
 // Initialize express app
 const app = express();
@@ -29,7 +32,9 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  // The site and API share one origin on Vercel; FRONTEND_URL only matters
+  // when the frontend is hosted elsewhere.
+  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language']
@@ -50,8 +55,34 @@ require('./config/passport')(passport);
 app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: db.isConfigured ? 'configured' : 'missing',
+    storage: Boolean((process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL)
+      && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)),
+  };
+  try {
+    await db.query('SELECT 1');
+    health.database = 'connected';
+  } catch (error) {
+    health.status = 'degraded';
+    health.databaseError = error.message;
+  }
+  res.status(health.status === 'ok' ? 200 : 503).json(health);
+});
+
+// Make sure tables and seed data exist before the first real request on each
+// cold start. After the first successful run this is a single cheap query.
+app.use('/api', async (req, res, next) => {
+  try {
+    await db.ensureSchemaOnce();
+    next();
+  } catch (error) {
+    console.error('Schema check failed:', error);
+    res.status(503).json({ error: '데이터베이스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.' });
+  }
 });
 
 // API Routes
@@ -67,6 +98,8 @@ app.use('/api/faq', faqRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/resumes', resumeRoutes);
+app.use('/api/site-settings', siteSettingsRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // 404 handler
 app.use((req, res) => {

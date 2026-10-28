@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Layout from './components/layout/Layout';
 import AdminLayout from './components/admin/AdminLayout';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Lazy load pages
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'));
@@ -63,7 +64,7 @@ const LoadingFallback = () => (
 );
 
 // Protected route component
-const ProtectedRoute = ({ children, roles }) => {
+const ProtectedRoute = ({ children, roles, redirectTo = '/' }) => {
   const { isAuthenticated, loading, hasRole } = useAuth();
 
   if (loading) {
@@ -75,11 +76,34 @@ const ProtectedRoute = ({ children, roles }) => {
   }
 
   if (roles && !hasRole(roles)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   return children;
 };
+
+// Role groups shared by routes and menus (admin always passes hasRole).
+const ADMIN_PANEL_ROLES = ['admin', 'hr_manager', 'instructor'];
+const CONSULTANT_ROLES = ['admin', 'hr_manager', 'instructor'];
+
+// /admin landing: instructors cannot use the dashboard stats API, so send
+// them straight to the course management page they are allowed to use.
+const AdminIndex = () => {
+  const { user } = useAuth();
+  if (user?.role === 'admin' || user?.role === 'hr_manager') {
+    return <AdminDashboard />;
+  }
+  return <Navigate to="/admin/courses" replace />;
+};
+
+// Guard for pages inside the admin panel: on denial go back to the admin
+// landing page (which routes each role to a page it can use) instead of a 403.
+const AdminRoute = ({ roles, children }) => (
+  <ProtectedRoute roles={roles} redirectTo="/admin">
+    {children}
+  </ProtectedRoute>
+);
+
 
 // Public route (redirect if already logged in)
 const PublicRoute = ({ children }) => {
@@ -98,7 +122,8 @@ const PublicRoute = ({ children }) => {
 
 const AppRoutes = () => {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
       <Routes>
         {/* Landing page - public entry point */}
         <Route
@@ -131,68 +156,19 @@ const AppRoutes = () => {
         <Route
           path="/admin/*"
           element={
-            <ProtectedRoute roles={['admin', 'hr_manager', 'instructor']}>
+            <ProtectedRoute roles={ADMIN_PANEL_ROLES}>
               <AdminLayout>
                 <Routes>
-                  <Route path="/" element={<AdminDashboard />} />
-                  <Route path="/users" element={<UserManagement />} />
-                  <Route
-                    path="/programs"
-                    element={
-                      <ProtectedRoute roles={['admin', 'instructor']}>
-                        <ProgramManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="/jobs" element={<JobManagement />} />
-                  <Route
-                    path="/courses"
-                    element={
-                      <ProtectedRoute roles={['admin', 'instructor']}>
-                        <CourseManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/announcements"
-                    element={
-                      <ProtectedRoute roles={['admin']}>
-                        <AnnouncementManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/faq"
-                    element={
-                      <ProtectedRoute roles={['admin']}>
-                        <FAQManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/inquiries"
-                    element={
-                      <ProtectedRoute roles={['admin']}>
-                        <InquiryManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/banners"
-                    element={
-                      <ProtectedRoute roles={['admin']}>
-                        <BannerManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/consultations"
-                    element={
-                      <ProtectedRoute roles={['admin', 'hr_manager']}>
-                        <ConsultationManagement />
-                      </ProtectedRoute>
-                    }
-                  />
+                  <Route path="/" element={<AdminIndex />} />
+                  <Route path="/users" element={<AdminRoute roles={['admin', 'hr_manager']}><UserManagement /></AdminRoute>} />
+                  <Route path="/programs" element={<AdminRoute roles={['admin', 'instructor']}><ProgramManagement /></AdminRoute>} />
+                  <Route path="/jobs" element={<AdminRoute roles={['admin']}><JobManagement /></AdminRoute>} />
+                  <Route path="/courses" element={<AdminRoute roles={['admin', 'instructor']}><CourseManagement /></AdminRoute>} />
+                  <Route path="/announcements" element={<AdminRoute roles={['admin']}><AnnouncementManagement /></AdminRoute>} />
+                  <Route path="/faq" element={<AdminRoute roles={['admin']}><FAQManagement /></AdminRoute>} />
+                  <Route path="/inquiries" element={<AdminRoute roles={['admin']}><InquiryManagement /></AdminRoute>} />
+                  <Route path="/banners" element={<AdminRoute roles={['admin']}><BannerManagement /></AdminRoute>} />
+                  <Route path="/consultations" element={<AdminRoute roles={['admin', 'hr_manager']}><ConsultationManagement /></AdminRoute>} />
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Routes>
               </AdminLayout>
@@ -226,7 +202,14 @@ const AppRoutes = () => {
 
                   {/* Consultations */}
                   <Route path="/consultations/booking" element={<ConsultationBooking />} />
-                  <Route path="/consultations/schedule" element={<ConsultantSchedule />} />
+                  <Route
+                    path="/consultations/schedule"
+                    element={
+                      <ProtectedRoute roles={CONSULTANT_ROLES}>
+                        <ConsultantSchedule />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Jobs */}
                   <Route path="/jobs" element={<JobList />} />
@@ -255,7 +238,8 @@ const AppRoutes = () => {
           }
         />
       </Routes>
-    </Suspense>
+      </Suspense>
+    </ErrorBoundary>
   );
 };
 

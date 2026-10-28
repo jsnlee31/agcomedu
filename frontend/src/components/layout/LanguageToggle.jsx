@@ -7,15 +7,24 @@ const LanguageToggle = () => {
 
   const handleLanguageChange = (event, newLanguage) => {
     if (newLanguage !== null) {
+      try {
+        localStorage.setItem('language', newLanguage);
+      } catch {
+        // Ignore storage failures; the in-memory language still changes.
+      }
       i18n.changeLanguage(newLanguage);
-      localStorage.setItem('language', newLanguage);
+      try {
+        document.documentElement.setAttribute('lang', newLanguage);
+      } catch {
+        // Ignore DOM access failures.
+      }
     }
   };
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <ToggleButtonGroup
-        value={i18n.language}
+        value={String(i18n.language || 'ko').startsWith('en') ? 'en' : 'ko'}
         exclusive
         onChange={handleLanguageChange}
         size="small"
@@ -36,7 +45,7 @@ const LanguageToggle = () => {
           },
         }}
       >
-        <ToggleButton value="ko" aria-label="Korean">
+        <ToggleButton value="ko" aria-label="한국어">
           KO
         </ToggleButton>
         <ToggleButton value="en" aria-label="English">

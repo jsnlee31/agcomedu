@@ -137,7 +137,9 @@
     "statusWaiting": "Waiting",
     "statusProcessing": "Processing",
     "statusCompleted": "Completed",
-    "response": "Response"
+    "response": "Response",
+    "faqDescription": "Find answers to frequently asked questions.",
+    "inquiryDescription": "Leave your question and our staff will review and respond."
   },
   "auth": {
     "login": "Login",

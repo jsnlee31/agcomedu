@@ -39,21 +39,23 @@ import {
   ViewCarousel as BannerIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useIsKorean } from '../../utils/language';
 
 const SIDEBAR_WIDTH = 260;
 const SIDEBAR_COLLAPSED = 72;
 
 const allNavItems = [
-  { id: 'dashboard', label: '대시보드', icon: <DashboardIcon />, path: '/admin', roles: ['admin', 'hr_manager'] },
-  { id: 'users', label: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', roles: ['admin'] },
-  { id: 'programs', label: '프로그램 관리', icon: <ProgramIcon />, path: '/admin/programs', roles: ['admin', 'instructor'] },
-  { id: 'courses', label: '강의 관리', icon: <CourseIcon />, path: '/admin/courses', roles: ['admin', 'instructor'] },
-  { id: 'consultations', label: '상담 관리', icon: <InquiryIcon />, path: '/admin/consultations', roles: ['admin', 'hr_manager'] },
-  { id: 'jobs', label: '채용 관리', icon: <JobIcon />, path: '/admin/jobs', roles: ['admin'] },
-  { id: 'announcements', label: '공지사항 관리', icon: <AnnouncementIcon />, path: '/admin/announcements', roles: ['admin'] },
-  { id: 'faq', label: 'FAQ 관리', icon: <FaqIcon />, path: '/admin/faq', roles: ['admin'] },
-  { id: 'inquiries', label: '문의 관리', icon: <InquiryIcon />, path: '/admin/inquiries', roles: ['admin'] },
-  { id: 'banners', label: '배너 관리', icon: <BannerIcon />, path: '/admin/banners', roles: ['admin'] },
+  // Roles must match the route guards in App.jsx and the backend authorize() calls.
+  { id: 'dashboard', label: '대시보드', labelEn: 'Dashboard', icon: <DashboardIcon />, path: '/admin', roles: ['admin', 'hr_manager'] },
+  { id: 'users', label: '사용자 관리', labelEn: 'Users', icon: <PeopleIcon />, path: '/admin/users', roles: ['admin', 'hr_manager'] },
+  { id: 'programs', label: '프로그램 관리', labelEn: 'Programs', icon: <ProgramIcon />, path: '/admin/programs', roles: ['admin', 'instructor'] },
+  { id: 'courses', label: '강의 관리', labelEn: 'Courses', icon: <CourseIcon />, path: '/admin/courses', roles: ['admin', 'instructor'] },
+  { id: 'consultations', label: '상담 관리', labelEn: 'Consultations', icon: <InquiryIcon />, path: '/admin/consultations', roles: ['admin', 'hr_manager'] },
+  { id: 'jobs', label: '채용 관리', labelEn: 'Jobs', icon: <JobIcon />, path: '/admin/jobs', roles: ['admin'] },
+  { id: 'announcements', label: '공지사항 관리', labelEn: 'Announcements', icon: <AnnouncementIcon />, path: '/admin/announcements', roles: ['admin'] },
+  { id: 'faq', label: 'FAQ 관리', labelEn: 'FAQ', icon: <FaqIcon />, path: '/admin/faq', roles: ['admin'] },
+  { id: 'inquiries', label: '문의 관리', labelEn: 'Inquiries', icon: <InquiryIcon />, path: '/admin/inquiries', roles: ['admin'] },
+  { id: 'banners', label: '배너 관리', labelEn: 'Banners', icon: <BannerIcon />, path: '/admin/banners', roles: ['admin'] },
 ];
 
 const AdminLayout = ({ children }) => {
@@ -62,6 +64,7 @@ const AdminLayout = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, logout } = useAuth();
+  const isKorean = useIsKorean();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -70,10 +73,12 @@ const AdminLayout = ({ children }) => {
   const sidebarWidth = collapsed && !isMobile ? SIDEBAR_COLLAPSED : SIDEBAR_WIDTH;
 
   // Filter nav items based on user role (admin sees all)
-  const navItems = allNavItems.filter((item) => {
-    if (user?.role === 'admin') return true;
-    return item.roles.includes(user?.role);
-  });
+  const navItems = allNavItems
+    .filter((item) => {
+      if (user?.role === 'admin') return true;
+      return item.roles.includes(user?.role);
+    })
+    .map((item) => ({ ...item, label: isKorean ? item.label : item.labelEn }));
 
   const isActive = (path) => {
     if (path === '/admin') return location.pathname === '/admin';
@@ -133,10 +138,10 @@ const AdminLayout = ({ children }) => {
             </Box>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2, letterSpacing: '0.02em' }}>
-                Asian Games CMS
+                {isKorean ? '아시안게임 CMS' : 'Asian Games CMS'}
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem' }}>
-                Content Management
+                {isKorean ? '콘텐츠 관리' : 'Content Management'}
               </Typography>
             </Box>
           </Box>
@@ -144,6 +149,7 @@ const AdminLayout = ({ children }) => {
         {!isMobile && (
           <IconButton
             onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? (isKorean ? '메뉴 펼치기' : 'Expand menu') : (isKorean ? '메뉴 접기' : 'Collapse menu')}
             sx={{ color: 'rgba(255,255,255,0.5)', p: 0.5, '&:hover': { color: '#fff' } }}
           >
             {collapsed ? <ExpandIcon fontSize="small" /> : <CollapseIcon fontSize="small" />}
@@ -208,7 +214,7 @@ const AdminLayout = ({ children }) => {
 
       {/* Bottom - User site link */}
       <Box sx={{ p: collapsed && !isMobile ? 1 : 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <Tooltip title={collapsed && !isMobile ? '사용자 페이지' : ''} placement="right" arrow>
+        <Tooltip title={collapsed && !isMobile ? (isKorean ? '사용자 페이지' : 'User site') : ''} placement="right" arrow>
           <ListItemButton
             onClick={() => navigate('/')}
             sx={{
@@ -227,7 +233,7 @@ const AdminLayout = ({ children }) => {
             </ListItemIcon>
             {(!collapsed || isMobile) && (
               <ListItemText
-                primary="사용자 페이지"
+                primary={isKorean ? '사용자 페이지' : 'User site'}
                 primaryTypographyProps={{ fontSize: '0.8125rem' }}
               />
             )}
@@ -275,7 +281,7 @@ const AdminLayout = ({ children }) => {
       )}
 
       {/* Main Area */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflow: 'hidden' }}>
         {/* Top Bar */}
         <AppBar
           position="sticky"
@@ -289,17 +295,17 @@ const AdminLayout = ({ children }) => {
         >
           <Toolbar sx={{ minHeight: '56px !important', px: { xs: 2, md: 3 } }}>
             {isMobile && (
-              <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}>
+              <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ mr: 1 }} aria-label={isKorean ? '메뉴' : 'menu'}>
                 <MenuIcon />
               </IconButton>
             )}
 
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, flex: 1 }}>
-              {navItems.find((item) => isActive(item.path))?.label || '관리자'}
+            <Typography variant="h6" noWrap sx={{ fontSize: '1rem', fontWeight: 600, flex: 1, minWidth: 0 }}>
+              {navItems.find((item) => isActive(item.path))?.label || (isKorean ? '관리자' : 'Admin')}
             </Typography>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Tooltip title="알림">
+              <Tooltip title={isKorean ? '알림' : 'Notifications'}>
                 <IconButton size="small">
                   <Badge badgeContent={3} color="error" variant="dot">
                     <NotificationsIcon fontSize="small" />
@@ -336,22 +342,22 @@ const AdminLayout = ({ children }) => {
                 anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
               >
                 <Box sx={{ px: 2, py: 1.5 }}>
-                  <Typography variant="subtitle2">{user?.name_ko || user?.name || '관리자'}</Typography>
-                  <Typography variant="caption" color="text.secondary">{user?.email || 'admin@asiangames.com'}</Typography>
+                  <Typography variant="subtitle2">{(isKorean ? (user?.name_ko || user?.name_en) : (user?.name_en || user?.name_ko)) || user?.name || (isKorean ? '관리자' : 'Admin')}</Typography>
+                  <Typography variant="caption" color="text.secondary">{user?.email || ''}</Typography>
                 </Box>
                 <Divider />
                 <MenuItem onClick={() => { setAnchorEl(null); navigate('/'); }}>
                   <ListItemIcon><HomeIcon fontSize="small" /></ListItemIcon>
-                  사용자 페이지
+                  {isKorean ? '사용자 페이지' : 'User site'}
                 </MenuItem>
                 <MenuItem onClick={() => setAnchorEl(null)}>
                   <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
-                  설정
+                  {isKorean ? '설정' : 'Settings'}
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                   <ListItemIcon><LogoutIcon fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
-                  로그아웃
+                  {isKorean ? '로그아웃' : 'Log out'}
                 </MenuItem>
               </Menu>
             </Box>

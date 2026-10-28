@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { authAPI } from '../services/api';
+import { apiObject, authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -7,12 +7,6 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
-};
-
-const testUsers = {
-  'admin@asiangames.com': { id: 'test-admin', email: 'admin@asiangames.com', name_ko: 'Asian Games Admin', name_en: 'Asian Games Admin', role: 'admin', department: 'Delegation Operations', status: 'active' },
-  'coach@asiangames.com': { id: 'test-coach', email: 'coach@asiangames.com', name_ko: 'National Team Coach', name_en: 'National Team Coach', role: 'instructor', department: 'Technical Coaching', status: 'active' },
-  'athlete@asiangames.com': { id: 'test-athlete', email: 'athlete@asiangames.com', name_ko: 'National Team Athlete', name_en: 'National Team Athlete', role: 'learner', department: 'Athlete Delegation', status: 'active' },
 };
 
 export const AuthProvider = ({ children }) => {
@@ -27,7 +21,8 @@ export const AuthProvider = ({ children }) => {
       if (token && savedUser) {
         try {
           const response = await authAPI.getMe();
-          const currentUser = response.data.user || response.data;
+          const currentUser = apiObject(response.data, 'user');
+          if (!currentUser.email && !currentUser.id) throw new Error('Invalid user payload');
           setUser(currentUser);
           localStorage.setItem('user', JSON.stringify(currentUser));
         } catch {
@@ -47,22 +42,19 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(async (email, password) => {
     setError(null);
-    if (password === 'demo1234' && testUsers[email]) {
-      const testUser = testUsers[email];
-      localStorage.setItem('token', `test-token-${Date.now()}`);
-      localStorage.setItem('user', JSON.stringify(testUser));
-      setUser(testUser);
-      return { success: true };
-    }
     try {
       const response = await authAPI.login({ email, password });
       const { token, user: userData } = response.data;
+      if (!token || !userData) throw new Error('Invalid login response');
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.error || err.response?.data?.message || 'Login failed. Please check your account.';
+      const status = err.response?.status;
+      const message = status === 401 || status === 400
+        ? '이메일 또는 비밀번호가 올바르지 않습니다.'
+        : err.response?.data?.error || err.response?.data?.message || '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
       setError(message);
       return { success: false, error: message };
     }
@@ -78,7 +70,8 @@ export const AuthProvider = ({ children }) => {
       setUser(newUser);
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.error || err.response?.data?.message || 'Registration failed';
+      const validationMessage = err.response?.data?.errors?.[0]?.msg;
+      const message = err.response?.data?.error || err.response?.data?.message || validationMessage || 'Registration failed';
       setError(message);
       return { success: false, error: message };
     }

@@ -61,7 +61,7 @@ const Inquiry = () => {
       });
       showSuccess('문의가 성공적으로 등록되었습니다. 빠른 시일 내에 답변 드리겠습니다.');
       reset();
-      navigate('/support/inquiries');
+      navigate('/support/inquiry/list');
     } catch (error) {
       showError('문의 등록에 실패했습니다. 다시 시도해주세요.');
     } finally {
@@ -158,7 +158,7 @@ const Inquiry = () => {
               답변 받으실 연락처
             </Typography>
 
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
               <Controller
                 name="email"
                 control={control}
@@ -234,7 +234,7 @@ const Inquiry = () => {
               <Button
                 variant="outlined"
                 size="large"
-                onClick={() => navigate('/support/inquiries')}
+                onClick={() => navigate('/support/inquiry/list')}
                 sx={{ minWidth: 120 }}
               >
                 취소

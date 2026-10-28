@@ -26,6 +26,7 @@ import {
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useIsKorean } from '../../utils/language';
 
 const DRAWER_WIDTH = 240;
 
@@ -59,8 +60,9 @@ const menuItems = [
       { id: 'applications', labelKey: 'activities.applicationHistory', path: '/activities/applications' },
       { id: 'consultations', labelKey: 'activities.consultationRecords', path: '/activities/consultations' },
       { id: 'courses', labelKey: 'activities.courseStatus', path: '/activities/courses' },
-      { id: 'booking', labelKey: '상담 예약', path: '/consultations/booking' },
-      { id: 'schedule', labelKey: '상담 일정 관리', path: '/consultations/schedule' },
+      { id: 'booking', labelKey: '상담 예약', labelEn: 'Book consultation', path: '/consultations/booking' },
+      // Consultant availability: only roles allowed by the backend (instructor/hr_manager/admin).
+      { id: 'schedule', labelKey: '상담 일정 관리', labelEn: 'Consultation schedule', path: '/consultations/schedule', roles: ['instructor', 'hr_manager', 'admin'] },
     ],
   },
   {
@@ -102,6 +104,7 @@ const adminMenuItems = [
   {
     id: 'admin',
     labelKey: '관리자 패널',
+    labelEn: 'Admin panel',
     icon: <AdminIcon />,
     path: '/admin',
   },
@@ -113,13 +116,28 @@ const Sidebar = ({ open, onClose }) => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { isAdmin, isHRManager } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isKorean = useIsKorean();
+  // Admin panel is available to every role that has at least one admin page
+  // (instructors manage courses/programs there).
+  const canSeeAdminPanel = hasRole(['admin', 'hr_manager', 'instructor']);
+
+  const visibleMenuItems = React.useMemo(() => menuItems.map((item) => (
+    item.children
+      ? { ...item, children: item.children.filter((child) => !child.roles || (user && hasRole(child.roles))) }
+      : item
+  )), [user, hasRole]);
+
+  const labelFor = (item) => {
+    if (item.labelKey.includes('.')) return t(item.labelKey);
+    return isKorean ? item.labelKey : (item.labelEn || item.labelKey);
+  };
 
   const [expandedItems, setExpandedItems] = React.useState({});
 
   // Expand parent menu if current path matches a child
   React.useEffect(() => {
-    const allMenus = [...menuItems, ...(isAdmin() || isHRManager() ? adminMenuItems : [])];
+    const allMenus = [...visibleMenuItems, ...(canSeeAdminPanel ? adminMenuItems : [])];
     allMenus.forEach((item) => {
       if (item.children) {
         const isActive = item.children.some(
@@ -130,7 +148,7 @@ const Sidebar = ({ open, onClose }) => {
         }
       }
     });
-  }, [location.pathname, isAdmin, isHRManager]);
+  }, [location.pathname, visibleMenuItems, canSeeAdminPanel]);
 
   const handleItemClick = (item) => {
     if (item.children) {
@@ -190,7 +208,7 @@ const Sidebar = ({ open, onClose }) => {
                 {item.icon}
               </ListItemIcon>
               <ListItemText
-                primary={item.labelKey.includes('.') ? t(item.labelKey) : item.labelKey}
+                primary={labelFor(item)}
                 primaryTypographyProps={{
                   fontWeight: isItemActive(item) ? 600 : 400,
                   color: isItemActive(item) ? 'primary.main' : 'inherit',
@@ -204,7 +222,7 @@ const Sidebar = ({ open, onClose }) => {
           </ListItem>
 
           {item.children && (
-            <Collapse in={expandedItems[item.id]} timeout="auto" unmountOnExit>
+            <Collapse in={Boolean(expandedItems[item.id])} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
                 {item.children.map((child) => (
                   <ListItemButton
@@ -223,7 +241,7 @@ const Sidebar = ({ open, onClose }) => {
                     }}
                   >
                     <ListItemText
-                      primary={child.labelKey.includes('.') ? t(child.labelKey) : child.labelKey}
+                      primary={labelFor(child)}
                       primaryTypographyProps={{
                         fontSize: '0.8125rem',
                         fontWeight: location.pathname === child.path ? 500 : 400,
@@ -242,10 +260,10 @@ const Sidebar = ({ open, onClose }) => {
 
   const drawerContent = (
     <Box sx={{ overflow: 'auto', mt: 1 }}>
-      {renderMenuItems(menuItems)}
+      {renderMenuItems(visibleMenuItems)}
 
       {/* Admin menu */}
-      {(isAdmin() || isHRManager()) && (
+      {canSeeAdminPanel && (
         <>
           <Box sx={{ mx: 2, my: 1, borderTop: '1px solid #E5E5E5' }} />
           {renderMenuItems(adminMenuItems)}

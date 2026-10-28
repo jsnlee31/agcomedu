@@ -20,49 +20,88 @@ import {
   AccessTime as TimeIcon,
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
+  Description as DocumentIcon,
+  Download as DownloadIcon,
   PlayCircle as PlayIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material';
-import { coursesAPI } from '../../services/api';
+import { apiObject, coursesAPI, isPlainObject } from '../../services/api';
 import CategoryBadge from '../../components/common/CategoryBadge';
+import { useIsKorean } from '../../utils/language';
 
 const getVideoType = (url) => {
-  if (!url) return 'none';
-  if (url.match(/youtube\.com\/watch|youtube\.com\/shorts\/|youtu\.be\//)) return 'youtube';
-  if (url.match(/vimeo\.com\//)) return 'vimeo';
+  if (!url || typeof url !== 'string') return 'none';
+  if (/youtube\.com\/(watch|shorts\/|embed\/|live\/)|youtube-nocookie\.com\/embed\/|youtu\.be\//i.test(url)) return 'youtube';
+  if (/vimeo\.com\//i.test(url)) return 'vimeo';
+  // Supabase storage URLs (/storage/v1/object/public/...) and .mp4/.webm/.mov files play in <video>
   return 'direct';
 };
 
 const getYouTubeId = (url) => {
-  const match = url.match(/(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/)([^&\s?]+)/);
+  const match = url.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtube\.com\/(?:shorts|embed|live)\/|youtube-nocookie\.com\/embed\/|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
   return match ? match[1] : null;
 };
 
 const getVimeoId = (url) => {
-  const match = url.match(/vimeo\.com\/(\d+)/);
+  const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   return match ? match[1] : null;
 };
 
-const VideoEmbed = ({ url, videoRef, onTimeUpdate, onEnded, title }) => {
+const VideoEmbed = ({ url, videoRef, onTimeUpdate, onEnded, title, errorText, openText }) => {
+  const [failed, setFailed] = useState(false);
   const type = getVideoType(url);
 
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
   if (type === 'youtube') {
-    return <iframe src={`https://www.youtube.com/embed/${getYouTubeId(url)}?rel=0&modestbranding=1`} title={title || 'Video'} style={{ width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />;
+    const videoId = getYouTubeId(url);
+    if (videoId) {
+      return <iframe src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`} title={title || 'Video'} style={{ width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />;
+    }
   }
 
   if (type === 'vimeo') {
-    return <iframe src={`https://player.vimeo.com/video/${getVimeoId(url)}?badge=0&autopause=0`} title={title || 'Video'} style={{ width: '100%', height: '100%', border: 'none' }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />;
+    const videoId = getVimeoId(url);
+    if (videoId) {
+      return <iframe src={`https://player.vimeo.com/video/${videoId}?badge=0&autopause=0`} title={title || 'Video'} style={{ width: '100%', height: '100%', border: 'none' }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />;
+    }
   }
 
-  return <video ref={videoRef} src={url} controls style={{ width: '100%', height: '100%' }} onTimeUpdate={onTimeUpdate} onEnded={onEnded} />;
+  if (failed) {
+    return (
+      <Box sx={{ textAlign: 'center', color: 'white', px: 2 }}>
+        <Typography variant="body1" sx={{ mb: 2 }}>{errorText}</Typography>
+        <Button variant="contained" href={url} target="_blank" rel="noopener noreferrer">{openText}</Button>
+      </Box>
+    );
+  }
+
+  return (
+    <video
+      key={url}
+      ref={videoRef}
+      controls
+      playsInline
+      preload="metadata"
+      style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+      onTimeUpdate={onTimeUpdate}
+      onEnded={onEnded}
+      onError={() => setFailed(true)}
+      src={url}
+    />
+  );
 };
 
 const VideoPlayer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const isKorean = useIsKorean();
   const videoRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState(null);
+  const [lessons, setLessons] = useState([]);
   const [currentLesson, setCurrentLesson] = useState(null);
   const [progress, setProgress] = useState(0);
 
@@ -71,11 +110,34 @@ const VideoPlayer = () => {
       setLoading(true);
       try {
         const response = await coursesAPI.getById(id);
-        const courseData = response.data?.course || response.data;
-        setCourse(courseData || null);
-        setCurrentLesson(courseData?.lessons?.[0] || null);
+        const courseData = apiObject(response.data, 'course');
+        if (!courseData.id) {
+          setCourse(null);
+          setLessons([]);
+          setCurrentLesson(null);
+          return;
+        }
+        const enrollment = isPlainObject(courseData.enrollment) ? courseData.enrollment : {};
+        const alreadyCompleted = Boolean(
+          courseData.is_completed ?? enrollment.is_completed ?? (Number(courseData.progress_percent ?? enrollment.progress_percent) >= 100)
+        );
+        let courseLessons = Array.isArray(courseData.lessons) ? courseData.lessons.filter(Boolean) : [];
+        if (courseLessons.length === 0 && courseData.video_url) {
+          courseLessons = [{
+            id: `course-${courseData.id}`,
+            title: courseData.title_ko || courseData.title_en || '',
+            title_en: courseData.title_en,
+            video_url: courseData.video_url,
+            duration: courseData.duration_minutes,
+            completed: alreadyCompleted,
+          }];
+        }
+        setCourse({ ...courseData, is_completed: alreadyCompleted });
+        setLessons(courseLessons);
+        setCurrentLesson(courseLessons[0] || null);
       } catch {
         setCourse(null);
+        setLessons([]);
         setCurrentLesson(null);
       } finally {
         setLoading(false);
@@ -93,84 +155,170 @@ const VideoPlayer = () => {
     if (videoRef.current?.duration) setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
   };
 
-  const handleVideoEnd = async () => {
-    if (!currentLesson) return;
+  const markLessonComplete = async (lesson) => {
+    if (!lesson) return;
+    const nextLessons = lessons.map((item) => (item.id === lesson.id ? { ...item, completed: true } : item));
+    setLessons(nextLessons);
+    setCurrentLesson((prev) => (prev && prev.id === lesson.id ? { ...prev, completed: true } : prev));
+    const doneCount = nextLessons.filter((item) => item.completed).length;
+    const percent = nextLessons.length > 0 ? Math.round((doneCount / nextLessons.length) * 100) : 100;
     try {
-      await coursesAPI.updateProgress(id, { lesson_id: currentLesson.id, completed: true });
+      await coursesAPI.updateProgress(id, { progress_percent: percent, is_completed: percent >= 100 });
     } catch {
       // Keep local completion visible when persistence fails.
     }
-    if (course?.lessons) {
-      setCourse({ ...course, lessons: course.lessons.map((lesson) => lesson.id === currentLesson.id ? { ...lesson, completed: true } : lesson) });
-    }
   };
 
+  const handleVideoEnd = () => markLessonComplete(currentLesson);
+
+  const backButton = (
+    <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/learning')} sx={{ mb: 2 }}>{isKorean ? '학습 자료로 돌아가기' : 'Back to learning'}</Button>
+  );
+
   if (loading) {
-    return <Box><Skeleton variant="rectangular" height={400} sx={{ mb: 3 }} /><Skeleton variant="rectangular" height={200} /></Box>;
+    return <Box><Skeleton variant="rectangular" height={400} sx={{ mb: 3, maxWidth: '100%' }} /><Skeleton variant="rectangular" height={200} /></Box>;
   }
 
   if (!course) {
     return (
       <Box sx={{ textAlign: 'center', py: 8 }}>
-        <Typography variant="h6" color="text.secondary">This course was not found in the API.</Typography>
-        <Button onClick={() => navigate('/learning')} sx={{ mt: 2 }}>Back to learning</Button>
+        <Typography variant="h6" color="text.secondary">{isKorean ? '해당 강의를 찾을 수 없습니다.' : 'This course could not be found.'}</Typography>
+        <Button onClick={() => navigate('/learning')} sx={{ mt: 2 }}>{isKorean ? '학습 자료로 돌아가기' : 'Back to learning'}</Button>
       </Box>
     );
   }
 
-  const lessons = course.lessons || [];
+  const courseTitle = (isKorean ? course.title_ko || course.title_en : course.title_en || course.title_ko) || '';
+  const courseDescription = (isKorean ? course.description_ko || course.description_en : course.description_en || course.description_ko)
+    || (isKorean ? '등록된 설명이 없습니다.' : 'No description provided.');
+  const documentUrl = course.document_url || '';
+  const hasVideo = lessons.some((lesson) => lesson?.video_url);
   const completedCount = lessons.filter((lesson) => lesson.completed).length;
-  const overallProgress = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+  const overallProgress = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : (course.is_completed ? 100 : 0);
   const videoType = currentLesson?.video_url ? getVideoType(currentLesson.video_url) : 'none';
   const isEmbedded = videoType === 'youtube' || videoType === 'vimeo';
+  const lessonTitle = (lesson) => (isKorean ? lesson.title || lesson.title_en : lesson.title_en || lesson.title) || (isKorean ? '강의' : 'Lesson');
+  const lessonDuration = (lesson) => {
+    if (lesson.duration === undefined || lesson.duration === null || lesson.duration === '') return null;
+    return Number.isFinite(Number(lesson.duration)) ? `${lesson.duration}${isKorean ? '분' : ' min'}` : String(lesson.duration);
+  };
+
+  const documentButton = documentUrl ? (
+    <Button
+      variant="outlined"
+      startIcon={<DownloadIcon />}
+      href={documentUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      download
+    >
+      {isKorean ? '강의 자료 열기/다운로드' : 'Open / download material'}
+    </Button>
+  ) : null;
+
+  if (!hasVideo && !documentUrl) {
+    return (
+      <Box>
+        {backButton}
+        <Card>
+          <CardContent sx={{ textAlign: 'center', py: 8 }}>
+            <PlayIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>{courseTitle}</Typography>
+            <Typography color="text.secondary">
+              {isKorean ? '아직 등록된 영상이나 자료가 없습니다. 곧 준비될 예정이니 조금만 기다려 주세요.' : 'No video or material has been registered yet. Please check back soon.'}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
 
   return (
     <Box>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/learning')} sx={{ mb: 2 }}>Back to learning</Button>
+      {backButton}
       <Grid container spacing={3}>
-        <Grid item xs={12} lg={8}>
+        <Grid size={{ xs: 12, lg: 8 }}>
           <Card sx={{ mb: 3 }}>
-            <Box sx={{ position: 'relative', backgroundColor: '#000', paddingTop: '56.25%' }}>
-              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {currentLesson?.video_url ? (
-                  <VideoEmbed url={currentLesson.video_url} videoRef={videoRef} onTimeUpdate={handleTimeUpdate} onEnded={handleVideoEnd} title={currentLesson.title} />
-                ) : (
-                  <Box sx={{ textAlign: 'center', color: 'white' }}><PlayIcon sx={{ fontSize: 80, mb: 2 }} /><Typography variant="h6">No video source registered.</Typography></Box>
-                )}
+            {hasVideo ? (
+              <>
+                <Box sx={{ position: 'relative', backgroundColor: '#000', paddingTop: '56.25%' }}>
+                  <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {currentLesson?.video_url ? (
+                      <VideoEmbed
+                        url={currentLesson.video_url}
+                        videoRef={videoRef}
+                        onTimeUpdate={handleTimeUpdate}
+                        onEnded={handleVideoEnd}
+                        title={lessonTitle(currentLesson)}
+                        errorText={isKorean ? '영상을 재생할 수 없습니다. 새 창에서 열어보세요.' : 'The video cannot be played here. Try opening it in a new tab.'}
+                        openText={isKorean ? '새 창에서 열기' : 'Open in new tab'}
+                      />
+                    ) : (
+                      <Box sx={{ textAlign: 'center', color: 'white' }}><PlayIcon sx={{ fontSize: 80, mb: 2 }} /><Typography variant="h6">{isKorean ? '등록된 영상이 없습니다.' : 'No video source registered.'}</Typography></Box>
+                    )}
+                  </Box>
+                </Box>
+                {currentLesson && !isEmbedded && <LinearProgress variant="determinate" value={progress} sx={{ height: 4 }} />}
+              </>
+            ) : (
+              <Box sx={{ backgroundColor: '#F8F9FA', py: 6, textAlign: 'center' }}>
+                <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 1 }} />
+                <Typography color="text.secondary">{isKorean ? '이 강의는 문서 자료로 제공됩니다.' : 'This course is provided as a document.'}</Typography>
               </Box>
-            </Box>
-            {currentLesson && !isEmbedded && <LinearProgress variant="determinate" value={progress} sx={{ height: 4 }} />}
+            )}
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><CategoryBadge category={course.category} /><Typography variant="caption" color="text.secondary">{course.instructor}</Typography></Box>
-              <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>{course.title}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{course.description}</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><TimeIcon fontSize="small" color="action" /><Typography variant="body2" color="text.secondary">{course.total_duration || '-'}</Typography></Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><ViewIcon fontSize="small" color="action" /><Typography variant="body2" color="text.secondary">{Number(course.views || 0).toLocaleString()} views</Typography></Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>{course.category && <CategoryBadge category={course.category} />}<Typography variant="caption" color="text.secondary">{course.instructor_name || course.instructor_email || '-'}</Typography></Box>
+              <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>{courseTitle}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, whiteSpace: 'pre-line' }}>{courseDescription}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><TimeIcon fontSize="small" color="action" /><Typography variant="body2" color="text.secondary">{course.duration_minutes ? `${course.duration_minutes}${isKorean ? '분' : ' min'}` : '-'}</Typography></Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><ViewIcon fontSize="small" color="action" /><Typography variant="body2" color="text.secondary">{isKorean ? `조회수 ${Number(course.view_count || 0).toLocaleString()}회` : `${Number(course.view_count || 0).toLocaleString()} views`}</Typography></Box>
               </Box>
+              {(documentButton || !hasVideo) && (
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
+                  {documentButton}
+                  {!hasVideo && (
+                    <Button variant="contained" startIcon={<CheckCircleIcon />} disabled={Boolean(course.is_completed)} onClick={async () => {
+                      try {
+                        await coursesAPI.updateProgress(id, { progress_percent: 100, is_completed: true });
+                      } catch {
+                        // ignore persistence failure
+                      }
+                      setCourse({ ...course, is_completed: true });
+                    }}>
+                      {course.is_completed ? (isKorean ? '학습 완료' : 'Completed') : (isKorean ? '학습 완료로 표시' : 'Mark as complete')}
+                    </Button>
+                  )}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} lg={4}>
-          <Card sx={{ position: 'sticky', top: 80 }}>
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <Card sx={{ position: { lg: 'sticky' }, top: 80 }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>Lessons</Typography>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>{isKorean ? '강의 목록' : 'Lessons'}</Typography>
               <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}><Typography variant="body2" color="text.secondary">Progress</Typography><Typography variant="body2" fontWeight={600}>{overallProgress}%</Typography></Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}><Typography variant="body2" color="text.secondary">{isKorean ? '진도율' : 'Progress'}</Typography><Typography variant="body2" fontWeight={600}>{overallProgress}%</Typography></Box>
                 <LinearProgress variant="determinate" value={overallProgress} sx={{ height: 8, borderRadius: 4 }} />
-                <Typography variant="caption" color="text.secondary">{completedCount} / {lessons.length} complete</Typography>
+                <Typography variant="caption" color="text.secondary">{completedCount} / {lessons.length} {isKorean ? '완료' : 'complete'}</Typography>
               </Box>
               <Divider sx={{ my: 2 }} />
               <List disablePadding>
-                {lessons.length === 0 ? <Typography color="text.secondary">No lessons returned by the API.</Typography> : lessons.map((lesson) => (
+                {lessons.length === 0 ? <Typography color="text.secondary">{isKorean ? '등록된 강의 영상이 없습니다.' : 'No lessons are available.'}</Typography> : lessons.map((lesson) => (
                   <ListItem key={lesson.id} disablePadding>
                     <ListItemButton selected={currentLesson?.id === lesson.id} onClick={() => handleLessonClick(lesson)} sx={{ borderRadius: 1, mb: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}>{lesson.completed ? <CheckCircleIcon color="success" fontSize="small" /> : <PlayIcon color="action" fontSize="small" />}</ListItemIcon>
-                      <ListItemText primary={<Typography variant="body2" fontWeight={currentLesson?.id === lesson.id ? 600 : 400}>{lesson.title}</Typography>} secondary={lesson.duration} />
+                      <ListItemText primary={<Typography variant="body2" fontWeight={currentLesson?.id === lesson.id ? 600 : 400}>{lessonTitle(lesson)}</Typography>} secondary={lessonDuration(lesson)} />
                     </ListItemButton>
                   </ListItem>
                 ))}
               </List>
+              {lessons.length > 0 && currentLesson && !currentLesson.completed && (
+                <Button fullWidth variant="outlined" startIcon={<CheckCircleIcon />} sx={{ mt: 2 }} onClick={() => markLessonComplete(currentLesson)}>
+                  {isKorean ? '학습 완료로 표시' : 'Mark as complete'}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </Grid>

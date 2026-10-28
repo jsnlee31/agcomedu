@@ -1,8 +1,12 @@
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../config/secrets');
+const { normalizeRole } = require('../utils/roles');
 
-// Authenticate with JWT
-const authenticate = passport.authenticate('jwt', { session: false });
+// Authenticate with a JWT issued by /api/auth/login or /api/auth/register.
+const authenticate = (req, res, next) => (
+  passport.authenticate('jwt', { session: false })(req, res, next)
+);
 
 // Check user role
 const authorize = (...roles) => {
@@ -11,6 +15,7 @@ const authorize = (...roles) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    req.user.role = normalizeRole(req.user.role);
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }
@@ -27,7 +32,7 @@ const generateToken = (user) => {
     role: user.role
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET || 'your-secret-key', {
+  return jwt.sign(payload, jwtSecret, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 };

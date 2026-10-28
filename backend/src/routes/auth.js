@@ -21,13 +21,13 @@ router.post('/bootstrap-admin', [
 
     const existingAdmin = await db.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
     if (existingAdmin.rows.length > 0) {
-      return res.status(403).json({ error: 'Admin bootstrap is already locked' });
+      return res.status(403).json({ error: '관리자 계정이 이미 존재합니다.' });
     }
 
     const { email, password, name_ko, name_en } = req.body;
     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: '이미 등록된 이메일입니다.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -41,10 +41,10 @@ router.post('/bootstrap-admin', [
 
     const user = result.rows[0];
     const token = generateToken(user);
-    res.status(201).json({ message: 'Admin created', user, token });
+    res.status(201).json({ message: '관리자 계정이 생성되었습니다.', user, token });
   } catch (error) {
     console.error('Bootstrap admin error:', error);
-    res.status(500).json({ error: 'Failed to bootstrap admin' });
+    res.status(500).json({ error: '관리자 계정 생성에 실패했습니다.' });
   }
 });
 
@@ -61,6 +61,7 @@ router.post('/register', [
     }
 
     const { email, password, name_ko, name_en, employee_id, phone } = req.body;
+    const optionalText = (value) => (typeof value === 'string' && value.trim() ? value.trim() : null);
 
     // Check if user exists
     const existingUser = await db.query(
@@ -69,7 +70,7 @@ router.post('/register', [
     );
 
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: '이미 등록된 이메일입니다.' });
     }
 
     // Hash password
@@ -81,20 +82,23 @@ router.post('/register', [
       `INSERT INTO users (email, password_hash, name_ko, name_en, employee_id, phone, role)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, email, name_ko, name_en, role, status`,
-      [email, passwordHash, name_ko, name_en, employee_id, phone, normalizeRole('user')]
+      [email, passwordHash, name_ko.trim(), optionalText(name_en), optionalText(employee_id), optionalText(phone), normalizeRole('user')]
     );
 
     const user = result.rows[0];
     const token = generateToken(user);
 
     res.status(201).json({
-      message: 'Registration successful',
+      message: '회원가입이 완료되었습니다.',
       user,
       token
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    if (error.code === '23505') {
+      return res.status(409).json({ error: error.constraint?.includes('employee') ? '이미 등록된 사번입니다.' : '이미 등록된 이메일입니다.' });
+    }
+    res.status(500).json({ error: '회원가입에 실패했습니다.' });
   }
 });
 
@@ -118,37 +122,38 @@ router.post('/login', [
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
     const user = result.rows[0];
 
     // Check if user has password (might be OAuth only)
     if (!user.password_hash) {
-      return res.status(401).json({ error: 'Please use OAuth to login' });
+      return res.status(401).json({ error: '소셜 로그인으로 로그인해 주세요.' });
     }
 
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
     // Check user status
     if (user.status !== 'active') {
-      return res.status(401).json({ error: 'Account is not active' });
+      return res.status(401).json({ error: '비활성화된 계정입니다.' });
     }
 
     // Update last login
+    const loginIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.socket?.remoteAddress || null;
     await db.query(
-      'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
+      'UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $2 WHERE id = $1',
+      [user.id, loginIp]
     );
 
     const token = generateToken(user);
 
     res.json({
-      message: 'Login successful',
+      message: '로그인되었습니다.',
       user: {
         id: user.id,
         email: user.email,
@@ -162,7 +167,7 @@ router.post('/login', [
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: '로그인에 실패했습니다.' });
   }
 });
 
@@ -192,13 +197,13 @@ router.get('/me', authenticate, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
     }
 
     res.json({ user: result.rows[0] });
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(500).json({ error: 'Failed to get user' });
+    res.status(500).json({ error: '사용자 정보를 불러오지 못했습니다.' });
   }
 });
 
@@ -210,6 +215,12 @@ router.put('/profile', authenticate, [
   body('preferred_language').optional().isIn(['ko', 'en']),
 ], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const clean = (value) => (typeof value === 'string' && value.trim() === '' ? null : value);
     const { name_ko, name_en, phone, preferred_language } = req.body;
 
     const result = await db.query(
@@ -221,16 +232,16 @@ router.put('/profile', authenticate, [
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $5
        RETURNING id, email, name_ko, name_en, role, phone, preferred_language`,
-      [name_ko, name_en, phone, preferred_language, req.user.id]
+      [clean(name_ko), clean(name_en), clean(phone), clean(preferred_language), req.user.id]
     );
 
     res.json({
-      message: 'Profile updated',
+      message: '프로필이 수정되었습니다.',
       user: result.rows[0]
     });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    res.status(500).json({ error: '프로필 수정에 실패했습니다.' });
   }
 });
 
@@ -254,13 +265,13 @@ router.put('/password', authenticate, [
     );
 
     if (!result.rows[0].password_hash) {
-      return res.status(400).json({ error: 'Cannot change password for OAuth accounts' });
+      return res.status(400).json({ error: '소셜 로그인 계정은 비밀번호를 변경할 수 없습니다.' });
     }
 
     // Verify current password
     const isMatch = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+      return res.status(401).json({ error: '현재 비밀번호가 올바르지 않습니다.' });
     }
 
     // Hash new password
@@ -273,17 +284,17 @@ router.put('/password', authenticate, [
       [passwordHash, req.user.id]
     );
 
-    res.json({ message: 'Password changed successfully' });
+    res.json({ message: '비밀번호가 변경되었습니다.' });
   } catch (error) {
     console.error('Change password error:', error);
-    res.status(500).json({ error: 'Failed to change password' });
+    res.status(500).json({ error: '비밀번호 변경에 실패했습니다.' });
   }
 });
 
 // Logout (for token blacklisting if needed)
 router.post('/logout', authenticate, (req, res) => {
   // In a production app, you might want to blacklist the token
-  res.json({ message: 'Logged out successfully' });
+  res.json({ message: '로그아웃되었습니다.' });
 });
 
 module.exports = router;

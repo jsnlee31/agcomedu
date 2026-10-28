@@ -25,9 +25,21 @@ import {
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useIsKorean } from '../../utils/language';
+
+const localizeRegisterError = (message, isKorean) => {
+  if (!isKorean) return message || 'Registration failed.';
+  const text = String(message || '');
+  if (/email already registered/i.test(text)) return '이미 등록된 이메일입니다.';
+  if (/employee id is already registered/i.test(text)) return '이미 등록된 사번입니다.';
+  if (/invalid value/i.test(text)) return '입력값을 다시 확인해 주세요.';
+  if (!text || /registration failed/i.test(text)) return '회원가입에 실패했습니다.';
+  return text;
+};
 
 const Register = () => {
   const { t } = useTranslation();
+  const isKorean = useIsKorean();
   const navigate = useNavigate();
   const { register: registerUser } = useAuth();
   const { showSuccess, showError } = useNotification();
@@ -51,25 +63,25 @@ const Register = () => {
     setError('');
 
     const userData = {
-      email: data.email,
+      email: String(data.email || '').trim(),
       password: data.password,
-      name_ko: data.name_ko,
+      name_ko: String(data.name_ko || '').trim(),
       name_en: data.name_en,
       phone: data.phone,
       employee_id: data.employee_id,
     };
 
     const result = await registerUser(userData);
+    setLoading(false);
 
     if (result.success) {
       showSuccess(t('auth.registerSuccess'));
       navigate('/');
     } else {
-      setError(result.error || '회원가입에 실패했습니다');
-      showError(result.error || '회원가입에 실패했습니다');
+      const message = localizeRegisterError(result.error, isKorean);
+      setError(message);
+      showError(message);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -87,7 +99,7 @@ const Register = () => {
         <Paper
           elevation={0}
           sx={{
-            p: 4,
+            p: { xs: 3, sm: 4 },
             borderRadius: 2,
             border: '1px solid #E5E5E5',
           }}
@@ -101,7 +113,7 @@ const Register = () => {
               {t('auth.register')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              퇴직지원 플랫폼 회원가입
+              {isKorean ? '국가대표 선수단 통합 플랫폼 회원가입' : 'Create your delegation platform account'}
             </Typography>
           </Box>
 
@@ -116,12 +128,13 @@ const Register = () => {
           <Box component="form" onSubmit={handleSubmit(onSubmit)}>
             <Grid container spacing={2}>
               {/* Name (Korean) */}
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
-                  label="이름 (한글)"
+                  label={isKorean ? '이름 (한글)' : 'Name (Korean)'}
                   {...register('name_ko', {
-                    required: '이름을 입력해주세요',
+                    required: isKorean ? '이름을 입력해주세요' : 'Name is required',
+                    validate: (value) => String(value || '').trim() !== '' || (isKorean ? '이름을 입력해주세요' : 'Name is required'),
                   })}
                   error={!!errors.name_ko}
                   helperText={errors.name_ko?.message}
@@ -136,10 +149,10 @@ const Register = () => {
               </Grid>
 
               {/* Name (English) */}
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
-                  label="Name (English)"
+                  label={isKorean ? '영문 이름' : 'Name (English)'}
                   {...register('name_en')}
                   InputProps={{
                     startAdornment: (
@@ -152,16 +165,16 @@ const Register = () => {
               </Grid>
 
               {/* Email */}
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   label={t('auth.email')}
                   type="email"
                   {...register('email', {
-                    required: '이메일을 입력해주세요',
+                    required: isKorean ? '이메일을 입력해주세요' : 'Email is required',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: '올바른 이메일 형식이 아닙니다',
+                      message: isKorean ? '올바른 이메일 형식이 아닙니다' : 'Enter a valid email address',
                     },
                   })}
                   error={!!errors.email}
@@ -177,14 +190,14 @@ const Register = () => {
               </Grid>
 
               {/* Phone */}
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label={t('auth.phone')}
                   {...register('phone', {
                     pattern: {
                       value: /^[0-9-]+$/,
-                      message: '올바른 전화번호 형식이 아닙니다',
+                      message: isKorean ? '올바른 전화번호 형식이 아닙니다' : 'Enter a valid phone number',
                     },
                   })}
                   error={!!errors.phone}
@@ -201,12 +214,12 @@ const Register = () => {
               </Grid>
 
               {/* Employee ID */}
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label={t('auth.employeeId')}
                   {...register('employee_id')}
-                  placeholder="사번 (선택)"
+                  placeholder={isKorean ? '사번 (선택)' : 'Employee ID (optional)'}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -218,16 +231,16 @@ const Register = () => {
               </Grid>
 
               {/* Password */}
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   label={t('auth.password')}
                   type={showPassword ? 'text' : 'password'}
                   {...register('password', {
-                    required: '비밀번호를 입력해주세요',
+                    required: isKorean ? '비밀번호를 입력해주세요' : 'Password is required',
                     minLength: {
                       value: 8,
-                      message: '비밀번호는 최소 8자 이상이어야 합니다',
+                      message: isKorean ? '비밀번호는 최소 8자 이상이어야 합니다' : 'Password must be at least 8 characters',
                     },
                   })}
                   error={!!errors.password}
@@ -253,15 +266,15 @@ const Register = () => {
               </Grid>
 
               {/* Confirm Password */}
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   label={t('auth.confirmPassword')}
                   type={showConfirmPassword ? 'text' : 'password'}
                   {...register('confirmPassword', {
-                    required: '비밀번호 확인을 입력해주세요',
+                    required: isKorean ? '비밀번호 확인을 입력해주세요' : 'Please confirm your password',
                     validate: (value) =>
-                      value === password || '비밀번호가 일치하지 않습니다',
+                      value === password || (isKorean ? '비밀번호가 일치하지 않습니다' : 'Passwords do not match'),
                   })}
                   error={!!errors.confirmPassword}
                   helperText={errors.confirmPassword?.message}
@@ -294,7 +307,7 @@ const Register = () => {
               disabled={loading}
               sx={{ mt: 3, mb: 2 }}
             >
-              {loading ? '가입 중...' : t('auth.register')}
+              {loading ? (isKorean ? '가입 중...' : 'Signing up...') : t('auth.register')}
             </Button>
           </Box>
 

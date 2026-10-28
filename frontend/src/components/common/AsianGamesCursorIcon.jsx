@@ -3,6 +3,7 @@ import { Box } from '@mui/material';
 import {
   DirectionsRun as RunIcon,
   Pool as SwimIcon,
+  Public as GlobeIcon,
   SportsBasketball as BallIcon,
   SportsMartialArts as MartialArtsIcon,
   SportsSoccer as SoccerIcon,
@@ -10,150 +11,190 @@ import {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-const AsianGamesCursorIcon = ({ compact = false }) => {
+const AsianGamesCursorIcon = ({ compact = false, interactive = true }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
   const handlePointerMove = useCallback((event) => {
+    if (!interactive) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const x = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 2, -1, 1);
     const y = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 2, -1, 1);
     setPosition({ x, y });
-  }, []);
+  }, [interactive]);
 
   const handlePointerLeave = useCallback(() => {
-    setPosition({ x: 0, y: 0 });
-  }, []);
+    if (interactive) setPosition({ x: 0, y: 0 });
+  }, [interactive]);
 
-  const size = compact ? 168 : 300;
-  const iconSize = compact ? 30 : 42;
-  const x = position.x;
-  const y = position.y;
+  const size = compact ? 42 : 330;
+  const x = interactive ? position.x : 0;
+  const y = interactive ? position.y : 0;
+  const sportIcons = [
+    { icon: <SwimIcon />, color: '#0081C8', angle: -28, radius: 0.36 },
+    { icon: <BallIcon />, color: '#FCB131', angle: 48, radius: 0.38 },
+    { icon: <MartialArtsIcon />, color: '#EE334E', angle: 132, radius: 0.37 },
+    { icon: <SoccerIcon />, color: '#00A651', angle: 214, radius: 0.39 },
+  ];
 
   return (
     <Box
-      aria-label="Cursor tracking Asian Games sports emblem"
+      aria-label="Asian Games athlete and globe emblem"
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       sx={{
         width: size,
         height: size,
         position: 'relative',
-        mx: 'auto',
+        flex: '0 0 auto',
         touchAction: 'none',
-        perspective: 900,
-        '--x': x,
-        '--y': y,
+        perspective: compact ? 400 : 1000,
+        '@keyframes agGlobeSpin': {
+          '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+          '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' },
+        },
+        '@keyframes agOrbitSpin': {
+          '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+          '100%': { transform: 'translate(-50%, -50%) rotate(-360deg)' },
+        },
+        '@keyframes agRunPulse': {
+          '0%, 100%': { transform: 'translateY(0) scale(1)' },
+          '50%': { transform: 'translateY(-4%) scale(1.04)' },
+        },
       }}
     >
       <Box
         sx={{
           position: 'absolute',
-          inset: compact ? 12 : 20,
+          left: '50%',
+          top: '50%',
+          width: compact ? 38 : 250,
+          height: compact ? 38 : 250,
           borderRadius: '50%',
-          border: '1px solid rgba(255,255,255,0.28)',
-          transform: `translate(${x * 10}px, ${y * 10}px) rotateX(${-y * 10}deg) rotateY(${x * 10}deg)`,
-          transition: 'transform 180ms ease-out',
-          background: 'radial-gradient(circle at 35% 28%, rgba(255,255,255,0.96), rgba(255,255,255,0.68) 34%, rgba(255,255,255,0.1) 72%)',
-          boxShadow: compact
-            ? '0 18px 48px rgba(0,0,0,0.18)'
-            : '0 30px 90px rgba(0,0,0,0.24)',
+          background: 'radial-gradient(circle at 35% 30%, rgba(255,255,255,0.96), rgba(109,205,255,0.72) 32%, rgba(0,58,112,0.84) 68%, rgba(0,24,62,0.94))',
+          boxShadow: compact ? '0 6px 18px rgba(0,58,112,0.25)' : '0 34px 90px rgba(0,20,60,0.36)',
+          transform: `translate(calc(-50% + ${x * (compact ? 2 : 12)}px), calc(-50% + ${y * (compact ? 2 : 10)}px)) rotateX(${-y * 10}deg) rotateY(${x * 14}deg)`,
+          transition: 'transform 140ms ease-out',
+          overflow: 'hidden',
+          '&:before': {
+            content: '""',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: '120%',
+            height: '120%',
+            borderRadius: '50%',
+            background: [
+              'linear-gradient(90deg, transparent 0 17%, rgba(255,255,255,0.42) 18% 20%, transparent 21% 38%, rgba(255,255,255,0.38) 39% 41%, transparent 42% 100%)',
+              'linear-gradient(0deg, transparent 0 22%, rgba(255,255,255,0.28) 23% 25%, transparent 26% 48%, rgba(255,255,255,0.22) 49% 51%, transparent 52% 100%)',
+            ].join(','),
+            animation: compact ? 'none' : 'agGlobeSpin 12s linear infinite',
+          },
+          '&:after': {
+            content: '""',
+            position: 'absolute',
+            inset: compact ? 6 : 34,
+            borderRadius: '50%',
+            border: `${compact ? 1 : 3}px solid rgba(255,255,255,0.35)`,
+            boxShadow: compact ? 'none' : '0 0 0 18px rgba(255,255,255,0.08)',
+          },
         }}
       />
 
-      {[
-        { color: '#0081C8', rotate: -90 },
-        { color: '#FCB131', rotate: -18 },
-        { color: '#000000', rotate: 54 },
-        { color: '#00A651', rotate: 126 },
-        { color: '#EE334E', rotate: 198 },
-      ].map((ring, index) => (
+      {!compact && (
         <Box
-          key={ring.color}
           sx={{
             position: 'absolute',
-            inset: compact ? 38 : 68,
-            border: `${compact ? 4 : 6}px solid ${ring.color}`,
+            left: '50%',
+            top: '50%',
+            width: 292,
+            height: 292,
             borderRadius: '50%',
-            opacity: 0.92,
-            transform: `translate(${x * (index + 2) * 2}px, ${y * (index + 2) * 2}px) rotate(${ring.rotate + x * 8}deg) scaleX(1.72) scaleY(0.84)`,
-            transition: 'transform 180ms ease-out',
-            mixBlendMode: 'multiply',
+            border: '1px solid rgba(255,255,255,0.42)',
+            animation: 'agOrbitSpin 18s linear infinite',
+            transformOrigin: 'center',
           }}
         />
-      ))}
+      )}
+
+      {sportIcons.map((item, index) => {
+        const angle = (item.angle * Math.PI) / 180;
+        const radius = item.radius * size;
+        const left = 50 + (Math.cos(angle) * radius / size) * 100;
+        const top = 50 + (Math.sin(angle) * radius / size) * 100;
+
+        return (
+          <Box
+            key={item.color}
+            sx={{
+              position: 'absolute',
+              left: `${left}%`,
+              top: `${top}%`,
+              width: compact ? 12 : 58,
+              height: compact ? 12 : 58,
+              borderRadius: '50%',
+              bgcolor: item.color,
+              color: '#fff',
+              display: compact ? 'none' : 'grid',
+              placeItems: 'center',
+              transform: `translate(calc(-50% + ${x * (10 + index * 5)}px), calc(-50% + ${y * (10 + index * 5)}px))`,
+              transition: 'transform 130ms ease-out',
+              boxShadow: '0 16px 34px rgba(0,0,0,0.22)',
+            }}
+          >
+            {React.cloneElement(item.icon, { sx: { fontSize: 30 } })}
+          </Box>
+        );
+      })}
 
       <Box
         sx={{
           position: 'absolute',
           left: '50%',
           top: '50%',
-          width: compact ? 78 : 122,
-          height: compact ? 78 : 122,
-          borderRadius: '28%',
-          transform: `translate(calc(-50% + ${x * 18}px), calc(-50% + ${y * 18}px)) rotate(${x * 7}deg)`,
-          transition: 'transform 150ms ease-out',
-          bgcolor: '#003A70',
-          color: '#fff',
+          width: compact ? 26 : 118,
+          height: compact ? 26 : 118,
+          borderRadius: compact ? '10px' : '26px',
+          bgcolor: '#fff',
+          color: '#003A70',
           display: 'grid',
           placeItems: 'center',
-          boxShadow: '0 20px 46px rgba(0,58,112,0.32)',
+          boxShadow: compact ? '0 5px 12px rgba(0,0,0,0.18)' : '0 24px 54px rgba(0,0,0,0.28)',
+          transform: `translate(calc(-50% + ${x * (compact ? 4 : 22)}px), calc(-50% + ${y * (compact ? 3 : 18)}px)) rotate(${x * 8}deg)`,
+          transition: 'transform 120ms ease-out',
           overflow: 'hidden',
           '&:before': {
             content: '""',
             position: 'absolute',
-            width: '160%',
-            height: '160%',
-            background: `radial-gradient(circle at ${50 + x * 24}% ${42 + y * 24}%, rgba(255,255,255,0.35), transparent 34%)`,
+            inset: compact ? -10 : -42,
+            background: 'conic-gradient(from 90deg, #0081C8, #FCB131, #EE334E, #00A651, #0081C8)',
+            opacity: 0.18,
+            animation: compact ? 'none' : 'agGlobeSpin 9s linear infinite',
           },
         }}
       >
-        <RunIcon sx={{ fontSize: compact ? 44 : 70, position: 'relative' }} />
+        <RunIcon
+          sx={{
+            fontSize: compact ? 22 : 74,
+            position: 'relative',
+            animation: compact ? 'none' : 'agRunPulse 1.5s ease-in-out infinite',
+          }}
+        />
       </Box>
 
-      {[
-        { icon: <SwimIcon />, color: '#0081C8', x: -0.08, y: -0.43 },
-        { icon: <BallIcon />, color: '#FCB131', x: 0.42, y: -0.05 },
-        { icon: <MartialArtsIcon />, color: '#EE334E', x: 0.1, y: 0.42 },
-        { icon: <SoccerIcon />, color: '#00A651', x: -0.46, y: 0.1 },
-      ].map((item, index) => (
+      {!compact && (
         <Box
-          key={item.color}
           sx={{
             position: 'absolute',
-            left: `calc(50% + ${item.x * size}px)`,
-            top: `calc(50% + ${item.y * size}px)`,
-            width: compact ? 48 : 64,
-            height: compact ? 48 : 64,
-            borderRadius: '50%',
-            bgcolor: item.color,
-            color: '#fff',
-            display: 'grid',
-            placeItems: 'center',
-            transform: `translate(calc(-50% + ${x * (14 + index * 4)}px), calc(-50% + ${y * (14 + index * 4)}px))`,
-            transition: 'transform 150ms ease-out',
-            boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+            right: 28,
+            bottom: 36,
+            color: 'rgba(255,255,255,0.9)',
+            transform: `translate(${x * 18}px, ${y * 18}px)`,
+            transition: 'transform 80ms linear',
           }}
         >
-          {React.cloneElement(item.icon, { sx: { fontSize: iconSize } })}
+          <GlobeIcon sx={{ fontSize: 30 }} />
         </Box>
-      ))}
-
-      <Box
-        sx={{
-          position: 'absolute',
-          left: `calc(50% + ${x * (compact ? 70 : 126)}px)`,
-          top: `calc(50% + ${y * (compact ? 70 : 126)}px)`,
-          width: compact ? 18 : 24,
-          height: compact ? 18 : 24,
-          borderRadius: '50%',
-          bgcolor: '#fff',
-          border: '3px solid #003A70',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-          transform: 'translate(-50%, -50%)',
-          transition: 'left 80ms linear, top 80ms linear',
-          pointerEvents: 'none',
-        }}
-      />
+      )}
     </Box>
   );
 };

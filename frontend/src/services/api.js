@@ -5,8 +5,25 @@ const api = axios.create({
   baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
 });
+
+export const isPlainObject = (value) => (
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+);
+
+export const apiArray = (data, key) => {
+  if (key && Array.isArray(data?.[key])) return data[key];
+  if (Array.isArray(data)) return data;
+  return [];
+};
+
+export const apiObject = (data, key) => {
+  if (key && isPlainObject(data?.[key])) return data[key];
+  if (isPlainObject(data)) return data;
+  return {};
+};
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
@@ -27,13 +44,23 @@ api.interceptors.request.use(
 
 // Response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (typeof response.data === 'string') {
+      return Promise.reject(new Error('API returned non-JSON content'));
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear auth and redirect
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/welcome';
+      const hadSession = Boolean(localStorage.getItem('token'));
+      const isAuthRequest = /\/auth\/(login|register)$/.test(error.config?.url || '');
+
+      if (hadSession && !isAuthRequest) {
+        // Token expired or invalid - clear auth and redirect
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/welcome';
+      }
     }
     return Promise.reject(error);
   }
@@ -55,6 +82,7 @@ export const programsAPI = {
   getAll: (params) => api.get('/programs', { params }),
   getById: (id) => api.get(`/programs/${id}`),
   apply: (id, data) => api.post(`/programs/${id}/apply`, data),
+  cancelApplication: (id) => api.delete(`/programs/${id}/apply`),
   getApplications: (id) => api.get(`/programs/${id}/applications`),
   updateApplicationStatus: (programId, appId, data) =>
     api.put(`/programs/${programId}/applications/${appId}`, data),
@@ -102,6 +130,7 @@ export const coursesAPI = {
   getAll: (params) => api.get('/courses', { params }),
   getById: (id) => api.get(`/courses/${id}`),
   enroll: (id) => api.post(`/courses/${id}/enroll`),
+  unenroll: (id) => api.delete(`/courses/${id}/enroll`),
   updateProgress: (id, data) => api.put(`/courses/${id}/progress`, data),
   getEnrollments: () => api.get('/courses/enrollments'),
   // Admin
@@ -175,6 +204,30 @@ export const dashboardAPI = {
   getHome: () => api.get('/dashboard/home'),
   getStats: () => api.get('/dashboard/stats'),
   getCalendar: (params) => api.get('/dashboard/calendar', { params }),
+};
+
+export const siteSettingsAPI = {
+  getHome: () => api.get('/site-settings/home'),
+  updateHome: (data) => api.put('/site-settings/home', data),
+};
+
+// File uploads (Supabase Storage via signed URL — the file goes straight to
+// storage, not through the API function)
+export const uploadsAPI = {
+  status: () => api.get('/uploads/status'),
+  upload: async (file, folder = 'videos', onProgress) => {
+    const { data } = await api.post('/uploads/sign', { fileName: file.name, folder });
+    await axios.put(data.uploadUrl, file, {
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert': 'false',
+      },
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    });
+    return data.publicUrl;
+  },
 };
 
 export default api;

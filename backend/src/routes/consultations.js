@@ -3,6 +3,22 @@ const router = express.Router();
 const db = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 
+// Accept legacy English values from older clients.
+const CONSULTATION_ALIASES = {
+  online: '온라인', offline: '오프라인', phone: '전화',
+  scheduled: '예약됨', pending: '예약됨', completed: '완료',
+  cancelled: '취소', canceled: '취소', no_show: '노쇼',
+};
+const toKorean = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  return CONSULTATION_ALIASES[String(value).toLowerCase()] || value;
+};
+
+const AVAILABILITY_COLUMNS = `ca.id, ca.consultant_id, ca.available_date,
+  to_char(ca.start_time, 'HH24:MI') AS start_time,
+  to_char(ca.end_time, 'HH24:MI') AS end_time,
+  ca.is_booked, ca.consultation_id, ca.created_at`;
+
 // ─── Get user's consultations ────────────────────────────────────────────────
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -30,7 +46,7 @@ router.get('/', authenticate, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get consultations error:', error);
-    res.status(500).json({ error: 'Failed to get consultations' });
+    res.status(500).json({ error: '상담 목록을 불러오지 못했습니다.' });
   }
 });
 
@@ -72,7 +88,7 @@ router.get('/all', authenticate, authorize('admin', 'instructor', 'hr_manager'),
     res.json(result.rows);
   } catch (error) {
     console.error('Get all consultations error:', error);
-    res.status(500).json({ error: 'Failed to get consultations' });
+    res.status(500).json({ error: '상담 목록을 불러오지 못했습니다.' });
   }
 });
 
@@ -91,7 +107,7 @@ router.get('/consultants', authenticate, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get consultants error:', error);
-    res.status(500).json({ error: 'Failed to get consultants' });
+    res.status(500).json({ error: '상담사 목록을 불러오지 못했습니다.' });
   }
 });
 
@@ -130,7 +146,7 @@ router.get('/admin/stats', authenticate, authorize('admin', 'hr_manager'), async
     res.json({ matrix: matrix.rows, summary: summary.rows[0] });
   } catch (error) {
     console.error('Get admin stats error:', error);
-    res.status(500).json({ error: 'Failed to get stats' });
+    res.status(500).json({ error: '통계를 불러오지 못했습니다.' });
   }
 });
 
@@ -151,7 +167,7 @@ router.get('/admin/by-consultant/:consultantId', authenticate, authorize('admin'
     res.json(result.rows);
   } catch (error) {
     console.error('Get consultant consultations error:', error);
-    res.status(500).json({ error: 'Failed to get consultations' });
+    res.status(500).json({ error: '상담 목록을 불러오지 못했습니다.' });
   }
 });
 
@@ -162,7 +178,7 @@ router.get('/availability/:consultantId', authenticate, async (req, res) => {
     const { date_from, date_to } = req.query;
 
     let query = `
-      SELECT ca.*, u.name_ko as consultant_name
+      SELECT ${AVAILABILITY_COLUMNS}, u.name_ko as consultant_name
       FROM consultant_availability ca
       JOIN users u ON ca.consultant_id = u.id
       WHERE ca.consultant_id = $1 AND ca.is_booked = FALSE
@@ -184,7 +200,7 @@ router.get('/availability/:consultantId', authenticate, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get availability error:', error);
-    res.status(500).json({ error: 'Failed to get availability' });
+    res.status(500).json({ error: '상담 가능 시간을 불러오지 못했습니다.' });
   }
 });
 
@@ -194,7 +210,7 @@ router.post('/availability', authenticate, authorize('instructor', 'hr_manager',
     const { slots } = req.body;
 
     if (!slots || !Array.isArray(slots) || slots.length === 0) {
-      return res.status(400).json({ error: 'Slots array is required' });
+      return res.status(400).json({ error: '등록할 상담 시간을 선택해 주세요.' });
     }
 
     const results = [];
@@ -207,8 +223,8 @@ router.post('/availability', authenticate, authorize('instructor', 'hr_manager',
 
       if (existing.rows.length === 0) {
         const result = await db.query(
-          `INSERT INTO consultant_availability (consultant_id, available_date, start_time, end_time)
-           VALUES ($1, $2, $3, $4) RETURNING *`,
+          `INSERT INTO consultant_availability AS ca (consultant_id, available_date, start_time, end_time)
+           VALUES ($1, $2, $3, $4) RETURNING ${AVAILABILITY_COLUMNS}`,
           [req.user.id, slot.date, slot.start_time, slot.end_time]
         );
         results.push(result.rows[0]);
@@ -218,7 +234,7 @@ router.post('/availability', authenticate, authorize('instructor', 'hr_manager',
     res.status(201).json(results);
   } catch (error) {
     console.error('Publish availability error:', error);
-    res.status(500).json({ error: 'Failed to publish availability' });
+    res.status(500).json({ error: '상담 시간 등록에 실패했습니다.' });
   }
 });
 
@@ -228,7 +244,7 @@ router.get('/my-availability', authenticate, authorize('instructor', 'hr_manager
     const { date_from, date_to } = req.query;
 
     let query = `
-      SELECT ca.*, c.user_id, u.name_ko as booked_by_name
+      SELECT ${AVAILABILITY_COLUMNS}, c.user_id, u.name_ko as booked_by_name
       FROM consultant_availability ca
       LEFT JOIN consultations c ON ca.consultation_id = c.id
       LEFT JOIN users u ON c.user_id = u.id
@@ -251,7 +267,7 @@ router.get('/my-availability', authenticate, authorize('instructor', 'hr_manager
     res.json(result.rows);
   } catch (error) {
     console.error('Get my availability error:', error);
-    res.status(500).json({ error: 'Failed to get availability' });
+    res.status(500).json({ error: '상담 가능 시간을 불러오지 못했습니다.' });
   }
 });
 
@@ -266,19 +282,29 @@ router.delete('/availability/:id', authenticate, authorize('instructor', 'hr_man
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Slot not found or already booked' });
+      return res.status(404).json({ error: '상담 시간을 찾을 수 없거나 이미 예약되었습니다.' });
     }
-    res.json({ message: 'Slot deleted' });
+    res.json({ message: '상담 시간이 삭제되었습니다.' });
   } catch (error) {
     console.error('Delete availability error:', error);
-    res.status(500).json({ error: 'Failed to delete slot' });
+    res.status(500).json({ error: '상담 시간 삭제에 실패했습니다.' });
   }
 });
 
 // ─── Book consultation (user picks available slot) ───────────────────────────
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { consultant_id, slot_id, topic, method } = req.body;
+    const { user_id, consultant_id, slot_id, scheduled_at, duration_minutes = 30, topic, method } = req.body;
+
+    if (['admin', 'hr_manager'].includes(req.user.role) && user_id && consultant_id && scheduled_at) {
+      const result = await db.query(
+        `INSERT INTO consultations (user_id, consultant_id, scheduled_at, duration_minutes, topic, method)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [user_id, consultant_id, scheduled_at, duration_minutes || 30, topic || '상담', toKorean(method) || '온라인']
+      );
+      return res.status(201).json(result.rows[0]);
+    }
 
     // Find the slot
     const slotResult = await db.query(
@@ -288,17 +314,20 @@ router.post('/', authenticate, async (req, res) => {
     );
 
     if (slotResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Time slot is not available' });
+      return res.status(400).json({ error: '선택한 시간은 예약할 수 없습니다.' });
     }
 
     const slot = slotResult.rows[0];
-    const scheduled_at = `${slot.available_date}T${slot.start_time}`;
+    const slotDate = slot.available_date instanceof Date
+      ? `${slot.available_date.getFullYear()}-${String(slot.available_date.getMonth() + 1).padStart(2, '0')}-${String(slot.available_date.getDate()).padStart(2, '0')}`
+      : String(slot.available_date).slice(0, 10);
+    const slotScheduledAt = `${slotDate}T${slot.start_time}+09:00`;
 
     const result = await db.query(
       `INSERT INTO consultations (user_id, consultant_id, scheduled_at, duration_minutes, topic, method)
        VALUES ($1, $2, $3, 30, $4, $5)
        RETURNING *`,
-      [req.user.id, consultant_id, scheduled_at, topic, method || '온라인']
+      [req.user.id, consultant_id, slotScheduledAt, topic, toKorean(method) || '온라인']
     );
 
     // Mark slot as booked
@@ -310,7 +339,7 @@ router.post('/', authenticate, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Book consultation error:', error);
-    res.status(500).json({ error: 'Failed to book consultation' });
+    res.status(500).json({ error: '상담 예약에 실패했습니다.' });
   }
 });
 
@@ -331,14 +360,14 @@ router.get('/:id', authenticate, async (req, res) => {
     );
 
     if (consultation.rows.length === 0) {
-      return res.status(404).json({ error: 'Consultation not found' });
+      return res.status(404).json({ error: '상담을 찾을 수 없습니다.' });
     }
 
     const c = consultation.rows[0];
     const isParticipant = c.user_id === req.user.id || c.consultant_id === req.user.id;
     const isAdmin = ['admin', 'hr_manager'].includes(req.user.role);
     if (!isParticipant && !isAdmin) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: '접근 권한이 없습니다.' });
     }
 
     const records = await db.query(
@@ -353,7 +382,7 @@ router.get('/:id', authenticate, async (req, res) => {
     res.json({ ...c, records: records.rows });
   } catch (error) {
     console.error('Get consultation detail error:', error);
-    res.status(500).json({ error: 'Failed to get consultation detail' });
+    res.status(500).json({ error: '상담 정보를 불러오지 못했습니다.' });
   }
 });
 
@@ -361,11 +390,13 @@ router.get('/:id', authenticate, async (req, res) => {
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, summary, notes, method } = req.body;
+    const status = toKorean(req.body.status);
+    const method = toKorean(req.body.method);
+    const { summary, notes } = req.body;
 
     const check = await db.query('SELECT * FROM consultations WHERE id = $1', [id]);
     if (check.rows.length === 0) {
-      return res.status(404).json({ error: 'Consultation not found' });
+      return res.status(404).json({ error: '상담을 찾을 수 없습니다.' });
     }
 
     const consultation = check.rows[0];
@@ -374,7 +405,7 @@ router.put('/:id', authenticate, async (req, res) => {
     const isAdmin = ['admin', 'hr_manager'].includes(req.user.role);
 
     if (!isOwner && !isConsultant && !isAdmin) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: '접근 권한이 없습니다.' });
     }
 
     const result = await db.query(
@@ -400,7 +431,7 @@ router.put('/:id', authenticate, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update consultation error:', error);
-    res.status(500).json({ error: 'Failed to update consultation' });
+    res.status(500).json({ error: '상담 수정에 실패했습니다.' });
   }
 });
 
@@ -408,16 +439,20 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
+    const isAdmin = ['admin', 'hr_manager'].includes(req.user.role);
 
+    // Owners may cancel only scheduled consultations; admins/HR and the
+    // assigned consultant may cancel any consultation.
     const result = await db.query(
-      `UPDATE consultations SET status = '취소'
-       WHERE id = $1 AND user_id = $2 AND status = '예약됨'
+      `UPDATE consultations SET status = '취소', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+         AND ($3::boolean OR consultant_id = $2 OR (user_id = $2 AND status = '예약됨'))
        RETURNING *`,
-      [id, req.user.id]
+      [id, req.user.id, isAdmin]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Consultation not found or cannot be cancelled' });
+      return res.status(404).json({ error: '상담을 찾을 수 없거나 취소할 수 없습니다.' });
     }
 
     // Free up slot
@@ -426,10 +461,10 @@ router.delete('/:id', authenticate, async (req, res) => {
       [id]
     );
 
-    res.json({ message: 'Consultation cancelled' });
+    res.json({ message: '상담이 취소되었습니다.', consultation: result.rows[0] });
   } catch (error) {
     console.error('Cancel consultation error:', error);
-    res.status(500).json({ error: 'Failed to cancel consultation' });
+    res.status(500).json({ error: '상담 취소에 실패했습니다.' });
   }
 });
 
@@ -441,14 +476,14 @@ router.post('/:id/records', authenticate, async (req, res) => {
 
     const check = await db.query('SELECT * FROM consultations WHERE id = $1', [id]);
     if (check.rows.length === 0) {
-      return res.status(404).json({ error: 'Consultation not found' });
+      return res.status(404).json({ error: '상담을 찾을 수 없습니다.' });
     }
 
     const c = check.rows[0];
     const isParticipant = c.user_id === req.user.id || c.consultant_id === req.user.id;
     const isAdmin = ['admin', 'hr_manager'].includes(req.user.role);
     if (!isParticipant && !isAdmin) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: '접근 권한이 없습니다.' });
     }
 
     const result = await db.query(
@@ -461,7 +496,7 @@ router.post('/:id/records', authenticate, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Add record error:', error);
-    res.status(500).json({ error: 'Failed to add record' });
+    res.status(500).json({ error: '상담 기록 등록에 실패했습니다.' });
   }
 });
 
