@@ -58,7 +58,7 @@ let schemaReady;
 let schemaChecked;
 
 // Bump when ensureCoreSchema changes so deployed databases re-run it once.
-const SCHEMA_VERSION = '2026-10-28.4';
+const SCHEMA_VERSION = '2026-10-29.1';
 
 const run = (text, params) => pool.query(text, params);
 
@@ -620,11 +620,11 @@ const ensureCoreSchema = async () => {
         `, [
           'home_cms',
           JSON.stringify({
-            platformName: '2026 \uC544\uC774\uCE58-\uB098\uACE0\uC57C \uC544\uC2DC\uC548\uAC8C\uC784 \uAD6D\uAC00\uB300\uD45C \uC120\uC218\uB2E8 \uD50C\uB7AB\uD3FC',
-            platformNameEn: '2026 Aichi-Nagoya Asian Games Delegation Platform',
-            logoImageUrl: '',
-            heroEyebrow: '2026 아이치·나고야 아시안게임',
-            heroTitle: '국가대표 선수단 통합 플랫폼',
+            platformName: '2026 우수선수 육성인력 교육',
+            platformNameEn: '2026 Elite Athlete Development Staff Training',
+            logoImageUrl: '/logo.png',
+            heroEyebrow: 'NO SPORTS NO FUTURE',
+            heroTitle: '우수선수 육성인력 교육',
             heroSubtitle: '훈련, 선수 지원, 상담, 교육과 선수단 운영을 하나의 플랫폼에서 관리합니다.',
             primaryButtonText: '로그인',
             secondaryButtonText: '회원가입',
@@ -634,23 +634,26 @@ const ensureCoreSchema = async () => {
           }),
         ]);
 
-        // Replace values still holding an earlier English default with the
-        // Korean default. Anything an admin customised is left alone.
+        // Replace values still holding an earlier default with the current
+        // default. Anything an admin customised is left alone.
         const legacyDefaults = {
-          heroEyebrow: ['2026 Aichi-Nagoya Asian Games', '2026 아이치·나고야 아시안게임'],
-          heroTitle: ['National Team Delegation Platform', '국가대표 선수단 통합 플랫폼'],
-          heroSubtitle: ['Training, athlete support, consultation, and team operations in one real-data testing environment.', '훈련, 선수 지원, 상담, 교육과 선수단 운영을 하나의 플랫폼에서 관리합니다.'],
-          primaryButtonText: ['Sign In', '로그인'],
-          secondaryButtonText: ['Create account', '회원가입'],
-          loginHelperText: ['Use real API accounts or the seeded test accounts below.', '발급받은 계정으로 로그인하세요. 계정이 없으면 회원가입을 진행해 주세요.'],
-          testAccountsText: ['Admin: admin@asiangames.com / demo1234\nCoach: coach@asiangames.com / demo1234\nAthlete: athlete@asiangames.com / demo1234', '코치 체험: coach@asiangames.com / demo1234\n선수 체험: athlete@asiangames.com / demo1234'],
+          platformName: [['2026 아이치-나고야 아시안게임 국가대표 선수단 플랫폼'], '2026 우수선수 육성인력 교육'],
+          platformNameEn: [['2026 Aichi-Nagoya Asian Games Delegation Platform'], '2026 Elite Athlete Development Staff Training'],
+          logoImageUrl: [[''], '/logo.png'],
+          heroEyebrow: [['2026 Aichi-Nagoya Asian Games', '2026 아이치·나고야 아시안게임'], 'NO SPORTS NO FUTURE'],
+          heroTitle: [['National Team Delegation Platform', '국가대표 선수단 통합 플랫폼'], '우수선수 육성인력 교육'],
+          heroSubtitle: [['Training, athlete support, consultation, and team operations in one real-data testing environment.'], '훈련, 선수 지원, 상담, 교육과 선수단 운영을 하나의 플랫폼에서 관리합니다.'],
+          primaryButtonText: [['Sign In'], '로그인'],
+          secondaryButtonText: [['Create account'], '회원가입'],
+          loginHelperText: [['Use real API accounts or the seeded test accounts below.'], '발급받은 계정으로 로그인하세요. 계정이 없으면 회원가입을 진행해 주세요.'],
+          testAccountsText: [['Admin: admin@asiangames.com / demo1234\nCoach: coach@asiangames.com / demo1234\nAthlete: athlete@asiangames.com / demo1234'], '코치 체험: coach@asiangames.com / demo1234\n선수 체험: athlete@asiangames.com / demo1234'],
         };
         const { rows: homeRows } = await run("SELECT value FROM site_settings WHERE key = 'home_cms'");
         if (homeRows[0]?.value && typeof homeRows[0].value === 'object') {
           const current = homeRows[0].value;
           let changed = false;
-          for (const [field, [oldValue, newValue]] of Object.entries(legacyDefaults)) {
-            if (current[field] === oldValue) {
+          for (const [field, [oldValues, newValue]] of Object.entries(legacyDefaults)) {
+            if (oldValues.includes(current[field] ?? '')) {
               current[field] = newValue;
               changed = true;
             }

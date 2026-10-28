@@ -39,14 +39,16 @@ const Login = () => {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', bgcolor: '#F8F9FA', py: 4 }}>
       <Container maxWidth="sm">
         <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, border: '1px solid #E5E5E5' }}>
-          <Box sx={{ mb: 2 }}>
-            <AsianGamesCursorIcon compact />
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+            {settings.logoImageUrl
+              ? <Box component="img" src={settings.logoImageUrl} alt={settings.platformName} sx={{ height: { xs: 64, sm: 80 }, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+              : <AsianGamesCursorIcon compact />}
           </Box>
           <Typography variant="h5" fontWeight={700} color="primary" align="center">
-            {isKorean ? '2026 아이치·나고야 아시안게임' : '2026 Aichi-Nagoya Asian Games'}
+            {isKorean ? (settings.platformName || settings.platformNameEn) : (settings.platformNameEn || settings.platformName)}
           </Typography>
           <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-            {isKorean ? '국가대표 선수단 통합 플랫폼' : 'National Team Delegation Platform'}
+            {settings.heroEyebrow}
           </Typography>
           {testAccountsText && (
             <Alert severity="info" sx={{ mb: 3, whiteSpace: 'pre-line', wordBreak: 'break-all' }}>

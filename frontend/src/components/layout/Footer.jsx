@@ -93,8 +93,8 @@ const Footer = () => {
               sx={{ mb: 0.5 }}
             >
               {isKorean
-                ? `© ${currentYear} 아시안게임 선수단 플랫폼. 모든 권리 보유.`
-                : `© ${currentYear} Asian Games Delegation Platform. All rights reserved.`}
+                ? `© ${currentYear} 2026 우수선수 육성인력 교육. 모든 권리 보유.`
+                : `© ${currentYear} 2026 Elite Athlete Development Staff Training. All rights reserved.`}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {t('footer.contact')}: 070-737-8600 | {t('footer.address')}: {isKorean ? '서울시 중구 소공로 51' : '51 Sogong-ro, Jung-gu, Seoul'}

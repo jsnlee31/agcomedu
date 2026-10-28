@@ -136,7 +136,7 @@ const AdminDashboard = () => {
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="h5" fontWeight={800}>{isKorean ? '관리자 대시보드' : 'Admin Dashboard'}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {isKorean ? '2026 아이치-나고야 아시안게임 플랫폼 실시간 현황입니다.' : '2026 Aichi-Nagoya Asian Games platform live overview.'}
+            {isKorean ? '2026 우수선수 육성인력 교육 플랫폼 실시간 현황입니다.' : '2026 Elite Athlete Development Staff Training live overview.'}
           </Typography>
         </Box>
         {isSuperAdmin() && (

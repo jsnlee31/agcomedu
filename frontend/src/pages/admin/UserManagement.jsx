@@ -195,11 +195,27 @@ const UserManagement = () => {
     const name = user.name_ko || user.name_en || user.email;
     if (!window.confirm(isKorean ? `'${name}' 사용자를 비활성화하시겠습니까?` : `Deactivate '${name}'?`)) return;
     try {
-      await usersAPI.delete(user.id);
+      await usersAPI.update(user.id, { status: 'inactive' });
       showSuccess(isKorean ? '사용자가 비활성화되었습니다.' : 'User deactivated.');
       await fetchUsers();
     } catch (error) {
       showError(errorMessage(error, isKorean ? '사용자를 비활성화하지 못했습니다.' : 'Unable to deactivate user.'));
+    }
+  };
+
+  const deleteUser = async (user) => {
+    const name = user.name_ko || user.name_en || user.email;
+    if (!window.confirm(isKorean
+      ? `'${name}' 사용자를 영구 삭제하시겠습니까?
+삭제 후에는 되돌릴 수 없으며, 이 사용자의 신청·상담·문의 기록도 함께 삭제됩니다.`
+      : `Permanently delete '${name}'?
+This cannot be undone and removes the user's applications, consultations and inquiries.`)) return;
+    try {
+      await usersAPI.delete(user.id);
+      showSuccess(isKorean ? '사용자가 삭제되었습니다.' : 'User deleted.');
+      await fetchUsers();
+    } catch (error) {
+      showError(errorMessage(error, isKorean ? '사용자를 삭제하지 못했습니다.' : 'Unable to delete user.'));
     }
   };
 
@@ -243,7 +259,7 @@ const UserManagement = () => {
             <Box sx={{ py: 8, textAlign: 'center' }}><CircularProgress /></Box>
           ) : (
             <TableContainer sx={{ overflowX: 'auto' }}>
-              <Table size="small" sx={{ minWidth: 760 }}>
+              <Table size="small" sx={{ minWidth: 980, '& th, & td': { whiteSpace: 'nowrap' } }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>{isKorean ? '이름' : 'Name'}</TableCell>
@@ -269,7 +285,10 @@ const UserManagement = () => {
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                         {canManageUser(user) && <Button size="small" onClick={() => openEdit(user)}>{isKorean ? '수정' : 'Edit'}</Button>}
                         {isAdmin() && user.id !== currentUser?.id && user.status !== 'inactive' && (
-                          <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => deactivateUser(user)}>{isKorean ? '비활성화' : 'Deactivate'}</Button>
+                          <Button size="small" color="warning" onClick={() => deactivateUser(user)}>{isKorean ? '비활성화' : 'Deactivate'}</Button>
+                        )}
+                        {isAdmin() && user.id !== currentUser?.id && (
+                          <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => deleteUser(user)}>{isKorean ? '삭제' : 'Delete'}</Button>
                         )}
                       </TableCell>
                     </TableRow>

@@ -97,7 +97,7 @@ const Home = () => {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={700}>{isKorean ? '아시안게임 선수단 대시보드' : 'Asian Games Delegation Dashboard'}</Typography>
+        <Typography variant="h5" fontWeight={700}>{isKorean ? '우수선수 육성인력 교육 대시보드' : 'Training Dashboard'}</Typography>
         <Typography variant="body2" color="text.secondary">{isKorean ? '프로그램, 학습, 상담, 공지사항을 한눈에 확인합니다.' : 'Live programs, learning, consultations, and notices.'}</Typography>
       </Box>
 

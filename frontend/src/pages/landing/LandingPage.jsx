@@ -86,9 +86,15 @@ const LandingPage = () => {
           minWidth: 0,
         }}
       >
-        <Box sx={{ width: { xs: 230, sm: 300, md: 330 }, maxWidth: '100%', mb: { xs: 3, md: 5 } }}>
-          <AsianGamesCursorIcon />
-        </Box>
+        {settings.logoImageUrl ? (
+          <Box sx={{ alignSelf: 'flex-start', bgcolor: 'rgba(255,255,255,0.96)', borderRadius: 3, px: { xs: 2, md: 3 }, py: { xs: 1.5, md: 2 }, mb: { xs: 3, md: 5 }, boxShadow: '0 12px 32px rgba(0,0,0,0.25)', maxWidth: '100%' }}>
+            <Box component="img" src={settings.logoImageUrl} alt={settings.platformName} sx={{ display: 'block', height: { xs: 64, sm: 84, md: 104 }, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+          </Box>
+        ) : (
+          <Box sx={{ width: { xs: 230, sm: 300, md: 330 }, maxWidth: '100%', mb: { xs: 3, md: 5 } }}>
+            <AsianGamesCursorIcon />
+          </Box>
+        )}
         <Typography variant="overline" sx={{ opacity: 0.86, letterSpacing: '0.14em' }}>
           {settings.heroEyebrow}
         </Typography>

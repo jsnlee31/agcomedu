@@ -71,11 +71,12 @@ const Header = ({ onMenuToggle }) => {
           }}
         >
           {settings.logoImageUrl ? (
+            // The logo artwork carries the platform title, so it replaces the text title.
             <Box
               component="img"
               src={settings.logoImageUrl}
               alt={settings.platformName}
-              sx={{ height: 38, width: 38, objectFit: 'contain', display: { xs: 'none', sm: 'block' } }}
+              sx={{ height: { xs: 34, sm: 44 }, width: 'auto', maxWidth: { xs: 150, sm: 220 }, objectFit: 'contain', display: 'block' }}
               onError={(event) => {
                 event.currentTarget.style.display = 'none';
               }}
@@ -88,6 +89,7 @@ const Header = ({ onMenuToggle }) => {
           <Typography
             variant="h6"
             sx={{
+              ...(settings.logoImageUrl && { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }),
               color: '#0047BA',
               fontWeight: 800,
               fontSize: { xs: '0.9rem', sm: '1rem', md: '1.125rem' },

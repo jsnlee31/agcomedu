@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { siteSettingsAPI } from '../services/api';
 
 export const DEFAULT_HOME_SETTINGS = {
-  platformName: '2026 아이치-나고야 아시안게임 국가대표 선수단 플랫폼',
-  platformNameEn: '2026 Aichi-Nagoya Asian Games Delegation Platform',
-  logoImageUrl: '',
-  heroEyebrow: '2026 아이치·나고야 아시안게임',
-  heroTitle: '국가대표 선수단 통합 플랫폼',
+  platformName: '2026 우수선수 육성인력 교육',
+  platformNameEn: '2026 Elite Athlete Development Staff Training',
+  logoImageUrl: '/logo.png',
+  heroEyebrow: 'NO SPORTS NO FUTURE',
+  heroTitle: '우수선수 육성인력 교육',
   heroSubtitle: '훈련·상담·교육·운영 지원을 하나의 플랫폼에서 통합 관리합니다.',
   primaryButtonText: '로그인',
   secondaryButtonText: '회원가입',

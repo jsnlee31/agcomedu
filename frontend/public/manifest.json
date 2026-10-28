@@ -1,21 +1,16 @@
 {
-  "short_name": "아시안게임선수단",
-  "name": "2026 아이치나고야 아시안게임 국가대표 선수단 플랫폼",
+  "short_name": "우수선수 교육",
+  "name": "2026 우수선수 육성인력 교육",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
     },
     {
-      "src": "logo192.png",
+      "src": "logo.png",
       "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "400x134"
     }
   ],
   "start_url": ".",

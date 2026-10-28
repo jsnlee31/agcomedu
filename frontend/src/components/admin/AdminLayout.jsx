@@ -138,7 +138,7 @@ const AdminLayout = ({ children }) => {
             </Box>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2, letterSpacing: '0.02em' }}>
-                {isKorean ? '아시안게임 CMS' : 'Asian Games CMS'}
+                {isKorean ? '우수선수 교육 CMS' : 'Training CMS'}
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem' }}>
                 {isKorean ? '콘텐츠 관리' : 'Content Management'}

@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "2026 Aichi-Nagoya Asian Games Delegation Platform",
+    "appName": "2026 Elite Athlete Development Staff Training",
     "loading": "Loading...",
     "error": "An error occurred",
     "save": "Save",
@@ -181,7 +181,7 @@
     "event": "Event"
   },
   "footer": {
-    "copyright": "© {year} 2026 Asian Games Delegation Platform. All rights reserved.",
+    "copyright": "© {{year}} 2026 Elite Athlete Development Staff Training. All rights reserved.",
     "contact": "Contact",
     "address": "Address",
     "privacyPolicy": "Privacy Policy",

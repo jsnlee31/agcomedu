@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "2026 아이치나고야 아시안게임 국가대표 선수단 플랫폼",
+    "appName": "2026 우수선수 육성인력 교육",
     "loading": "로딩 중...",
     "error": "오류가 발생했습니다",
     "save": "저장",
@@ -181,7 +181,7 @@
     "event": "일정"
   },
   "footer": {
-    "copyright": "© {{year}} 아시안게임 선수단 플랫폼. 모든 권리 보유.",
+    "copyright": "© {{year}} 2026 우수선수 육성인력 교육. 모든 권리 보유.",
     "contact": "대표번호",
     "address": "주소",
     "privacyPolicy": "개인정보처리방침",

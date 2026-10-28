@@ -144,7 +144,9 @@ const BannerManagement = () => {
               <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(3,10,25,0.5), rgba(0,0,0,0.88))' }} />
               <Box sx={{ position: 'relative', zIndex: 1, p: 3, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 {settings.logoImageUrl ? (
-                  <Box component="img" src={settings.logoImageUrl} alt="로고 미리보기" sx={{ maxWidth: 110, maxHeight: 78, objectFit: 'contain', mb: 2 }} />
+                  <Box sx={{ alignSelf: 'flex-start', bgcolor: 'rgba(255,255,255,0.96)', borderRadius: 2, px: 1.5, py: 1, mb: 2 }}>
+                    <Box component="img" src={settings.logoImageUrl} alt="로고 미리보기" sx={{ display: 'block', height: 64, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+                  </Box>
                 ) : (
                   <Box sx={{ width: 190, mb: 2 }}>
                     <AsianGamesCursorIcon compact={false} interactive={false} />

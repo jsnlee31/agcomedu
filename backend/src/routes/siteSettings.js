@@ -6,11 +6,11 @@ const { authenticate, authorize } = require('../middleware/auth');
 const SETTING_KEY = 'home_cms';
 
 const DEFAULT_SETTINGS = {
-  platformName: '2026 \uC544\uC774\uCE58-\uB098\uACE0\uC57C \uC544\uC2DC\uC548\uAC8C\uC784 \uAD6D\uAC00\uB300\uD45C \uC120\uC218\uB2E8 \uD50C\uB7AB\uD3FC',
-  platformNameEn: '2026 Aichi-Nagoya Asian Games Delegation Platform',
-  logoImageUrl: '',
-  heroEyebrow: '2026 \uC544\uC774\uCE58\u00B7\uB098\uACE0\uC57C \uC544\uC2DC\uC548\uAC8C\uC784',
-  heroTitle: '\uAD6D\uAC00\uB300\uD45C \uC120\uC218\uB2E8 \uD1B5\uD569 \uD50C\uB7AB\uD3FC',
+  platformName: '2026 우수선수 육성인력 교육',
+  platformNameEn: '2026 Elite Athlete Development Staff Training',
+  logoImageUrl: '/logo.png',
+  heroEyebrow: 'NO SPORTS NO FUTURE',
+  heroTitle: '우수선수 육성인력 교육',
   heroSubtitle: '\uD6C8\uB828\u00B7\uC0C1\uB2F4\u00B7\uAD50\uC721\u00B7\uC6B4\uC601 \uC9C0\uC6D0\uC744 \uD558\uB098\uC758 \uD50C\uB7AB\uD3FC\uC5D0\uC11C \uD1B5\uD569 \uAD00\uB9AC\uD569\uB2C8\uB2E4.',
   primaryButtonText: '\uB85C\uADF8\uC778',
   secondaryButtonText: '\uD68C\uC6D0\uAC00\uC785',

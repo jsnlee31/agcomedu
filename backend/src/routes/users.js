@@ -243,7 +243,7 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
     const { id } = req.params;
 
     if (id === req.user.id) {
-      return res.status(400).json({ error: '본인 계정은 비활성화할 수 없습니다.' });
+      return res.status(400).json({ error: '본인 계정은 삭제할 수 없습니다.' });
     }
 
     const existing = await db.query('SELECT role FROM users WHERE id = $1', [id]);
@@ -255,15 +255,47 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
       return res.status(403).json({ error: '해당 역할을 관리할 권한이 없습니다.' });
     }
 
-    await db.query(
-      `UPDATE users SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [id]
-    );
+    if (existing.rows[0].role === 'admin') {
+      const admins = await db.query("SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin'");
+      if (admins.rows[0].count <= 1) {
+        return res.status(400).json({ error: '마지막 관리자 계정은 삭제할 수 없습니다.' });
+      }
+    }
 
-    res.json({ message: '사용자가 비활성화되었습니다.' });
+    // Permanently delete. References without ON DELETE rules (e.g. content the
+    // user created, consultations they ran) are cleared first so the delete
+    // can't be blocked; NOT NULL references are removed with the user.
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: references } = await client.query(`
+        SELECT con.conrelid::regclass::text AS table_name, att.attname AS column_name, att.attnotnull AS not_null
+        FROM pg_constraint con
+        JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+        WHERE con.contype = 'f' AND con.confrelid = 'users'::regclass AND con.confdeltype IN ('a', 'r')
+      `);
+      for (const ref of references) {
+        const table = `"${ref.table_name.replace(/"/g, '')}"`;
+        const column = `"${ref.column_name.replace(/"/g, '')}"`;
+        if (ref.not_null) {
+          await client.query(`DELETE FROM ${table} WHERE ${column} = $1`, [id]);
+        } else {
+          await client.query(`UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`, [id]);
+        }
+      }
+      await client.query('DELETE FROM users WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    res.json({ message: '사용자가 삭제되었습니다.' });
   } catch (error) {
     console.error('Delete user error:', error);
-    res.status(500).json({ error: '사용자 비활성화에 실패했습니다.', detail: error.message });
+    res.status(500).json({ error: '사용자 삭제에 실패했습니다.' });
   }
 });
 
