@@ -1,4 +1,6 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
+import lazyWithReload from './utils/lazyWithReload';
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, CircularProgress, Box } from '@mui/material';
@@ -14,40 +16,40 @@ import AdminLayout from './components/admin/AdminLayout';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Lazy load pages
-const LandingPage = lazy(() => import('./pages/landing/LandingPage'));
-const Home = lazy(() => import('./pages/home/Home'));
-const Login = lazy(() => import('./pages/auth/Login'));
-const Register = lazy(() => import('./pages/auth/Register'));
-const ProgramList = lazy(() => import('./pages/programs/ProgramList'));
-const ProgramDetail = lazy(() => import('./pages/programs/ProgramDetail'));
-const ProgramApply = lazy(() => import('./pages/programs/ProgramApply'));
-const MyActivities = lazy(() => import('./pages/activities/MyActivities'));
-const JobList = lazy(() => import('./pages/jobs/JobList'));
-const JobDetail = lazy(() => import('./pages/jobs/JobDetail'));
-const Favorites = lazy(() => import('./pages/jobs/Favorites'));
-const ResumeManager = lazy(() => import('./pages/jobs/ResumeManager'));
-const LearningMaterials = lazy(() => import('./pages/learning/LearningMaterials'));
-const VideoPlayer = lazy(() => import('./pages/learning/VideoPlayer'));
-const Notices = lazy(() => import('./pages/support/Notices'));
-const FAQ = lazy(() => import('./pages/support/FAQ'));
-const Inquiry = lazy(() => import('./pages/support/Inquiry'));
-const InquiryList = lazy(() => import('./pages/support/InquiryList'));
+const LandingPage = lazyWithReload(() => import('./pages/landing/LandingPage'));
+const Home = lazyWithReload(() => import('./pages/home/Home'));
+const Login = lazyWithReload(() => import('./pages/auth/Login'));
+const Register = lazyWithReload(() => import('./pages/auth/Register'));
+const ProgramList = lazyWithReload(() => import('./pages/programs/ProgramList'));
+const ProgramDetail = lazyWithReload(() => import('./pages/programs/ProgramDetail'));
+const ProgramApply = lazyWithReload(() => import('./pages/programs/ProgramApply'));
+const MyActivities = lazyWithReload(() => import('./pages/activities/MyActivities'));
+const JobList = lazyWithReload(() => import('./pages/jobs/JobList'));
+const JobDetail = lazyWithReload(() => import('./pages/jobs/JobDetail'));
+const Favorites = lazyWithReload(() => import('./pages/jobs/Favorites'));
+const ResumeManager = lazyWithReload(() => import('./pages/jobs/ResumeManager'));
+const LearningMaterials = lazyWithReload(() => import('./pages/learning/LearningMaterials'));
+const VideoPlayer = lazyWithReload(() => import('./pages/learning/VideoPlayer'));
+const Notices = lazyWithReload(() => import('./pages/support/Notices'));
+const FAQ = lazyWithReload(() => import('./pages/support/FAQ'));
+const Inquiry = lazyWithReload(() => import('./pages/support/Inquiry'));
+const InquiryList = lazyWithReload(() => import('./pages/support/InquiryList'));
 
 // Consultation pages
-const ConsultationBooking = lazy(() => import('./pages/consultations/ConsultationBooking'));
-const ConsultantSchedule = lazy(() => import('./pages/consultations/ConsultantSchedule'));
+const ConsultationBooking = lazyWithReload(() => import('./pages/consultations/ConsultationBooking'));
+const ConsultantSchedule = lazyWithReload(() => import('./pages/consultations/ConsultantSchedule'));
 
 // Admin pages
-const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
-const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
-const ProgramManagement = lazy(() => import('./pages/admin/ProgramManagement'));
-const JobManagement = lazy(() => import('./pages/admin/JobManagement'));
-const CourseManagement = lazy(() => import('./pages/admin/CourseManagement'));
-const AnnouncementManagement = lazy(() => import('./pages/admin/AnnouncementManagement'));
-const FAQManagement = lazy(() => import('./pages/admin/FAQManagement'));
-const InquiryManagement = lazy(() => import('./pages/admin/InquiryManagement'));
-const BannerManagement = lazy(() => import('./pages/admin/BannerManagement'));
-const ConsultationManagement = lazy(() => import('./pages/admin/ConsultationManagement'));
+const AdminDashboard = lazyWithReload(() => import('./pages/admin/Dashboard'));
+const UserManagement = lazyWithReload(() => import('./pages/admin/UserManagement'));
+const ProgramManagement = lazyWithReload(() => import('./pages/admin/ProgramManagement'));
+const JobManagement = lazyWithReload(() => import('./pages/admin/JobManagement'));
+const CourseManagement = lazyWithReload(() => import('./pages/admin/CourseManagement'));
+const AnnouncementManagement = lazyWithReload(() => import('./pages/admin/AnnouncementManagement'));
+const FAQManagement = lazyWithReload(() => import('./pages/admin/FAQManagement'));
+const InquiryManagement = lazyWithReload(() => import('./pages/admin/InquiryManagement'));
+const BannerManagement = lazyWithReload(() => import('./pages/admin/BannerManagement'));
+const ConsultationManagement = lazyWithReload(() => import('./pages/admin/ConsultationManagement'));
 
 // Loading component
 const LoadingFallback = () => (
